@@ -23,20 +23,12 @@ export type LoginPayload = {
   password: string
 }
 
-export type ResendConfirmationPayload = {
-  email: string
-}
-
 export type RegisterResponse = {
   message: string
 }
 
 export type LoginResponse = {
   accessToken: string
-}
-
-export type ResendConfirmationResponse = {
-  message: string
 }
 
 const normalizeDisplayName = (displayName: string): string => displayName.trim()
@@ -116,23 +108,9 @@ export const createAuthApi = (baseUrl: string) => {
     return result
   }
 
-  const resendConfirmation = async (payload: ResendConfirmationPayload): Promise<ResendConfirmationResponse> => {
-    return request<ResendConfirmationResponse>(
-      '/auth/resend-confirmation',
-      {
-        method: 'POST',
-        body: JSON.stringify({
-          email: payload.email.trim(),
-        }),
-      },
-      false,
-    )
-  }
-
   return {
     register,
     login,
-    resendConfirmation,
     request,
     getAccessToken,
     setAccessToken,

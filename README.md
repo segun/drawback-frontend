@@ -34,6 +34,37 @@ Implemented auth endpoints:
 - `POST /auth/register` (no token)
 - `POST /auth/login` (no token)
 
+Implemented authenticated user/chat endpoints:
+
+- `GET /users/me`
+- `PATCH /users/me`
+- `PATCH /users/me/mode`
+- `DELETE /users/me`
+- `GET /users/public`
+- `GET /users/search?q=`
+- `GET /users/me/blocked`
+- `POST /users/:id/block`
+- `DELETE /users/:id/block`
+- `POST /chat/requests`
+- `GET /chat/requests/sent`
+- `GET /chat/requests/received`
+- `POST /chat/requests/:requestId/respond`
+- `DELETE /chat/requests/:requestId`
+- `POST /chat/requests/:requestId/save`
+- `GET /chat/saved`
+- `DELETE /chat/saved/:savedChatId`
+
+Implemented authenticated UX:
+
+- View own account details after login.
+- Update own display name and visibility mode (`PRIVATE` default, or `PUBLIC`).
+- Delete own account.
+- View public users and send chat requests.
+- View all chat requests (sent and received).
+- Accept or reject received chat requests.
+- Save accepted chats and list/delete saved chats.
+- Block and unblock users.
+
 Token behavior:
 
 - Access token is stored in `localStorage`.
