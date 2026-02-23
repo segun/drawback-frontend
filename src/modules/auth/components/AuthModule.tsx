@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { ApiError } from '../../../common/api/apiError'
-import { NoticeBanner, type Notice } from '../../../common/components/NoticeBanner'
+import { type Notice } from '../../../common/components/NoticeBanner'
 import { disconnectDrawbackSocket, emitChatJoin, emitDrawClear, emitDrawLeave, emitDrawStroke, getOrCreateDrawbackSocket } from '../../../common/realtime/drawbackSocket'
 import { createAuthApi } from '../api/authApi'
 import { type BlockedUser, type ChatRequest, createSocialApi, type SavedChat, type UserMode, type UserProfile } from '../api/socialApi'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../constants'
 import { isValidDisplayName } from '../utils/displayName'
+import { AuthModuleView } from './AuthModuleView'
 
 type AuthTab = 'register' | 'login'
 type CenterView = 'chat' | 'profile'
@@ -23,8 +24,21 @@ type DrawSegmentStroke = {
   width: number
 }
 
-const DRAW_COLOR = '#be123c'
 const DRAW_WIDTH = 2
+
+const PRESET_COLORS = [
+  '#000000',
+  '#374151',
+  '#be123c',
+  '#ea580c',
+  '#d97706',
+  '#16a34a',
+  '#0d9488',
+  '#2563eb',
+  '#7c3aed',
+  '#db2777',
+  '#ffffff',
+]
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 
@@ -78,6 +92,7 @@ export function AuthModule() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedChatRequestId, setSelectedChatRequestId] = useState<string | null>(null)
   const [joinedChatRequestId, setJoinedChatRequestId] = useState<string | null>(null)
+  const [peerPresent, setPeerPresent] = useState<boolean>(false)
   const [closedRecentChatRequestIds, setClosedRecentChatRequestIds] = useState<Set<string>>(new Set())
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -92,6 +107,7 @@ export function AuthModule() {
   const localCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const remoteCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const localLastPointRef = useRef<NormalizedPoint | null>(null)
+  const [drawColor, setDrawColor] = useState('#be123c')
 
   const showNotice = (text: string, type: Notice['type'] = 'info'): void => {
     setNotice({ text, type })
@@ -107,6 +123,13 @@ export function AuthModule() {
     if (rect.width === 0 || rect.height === 0) {
       return null
     }
+
+    // Lock CSS dimensions via inline style BEFORE touching the drawing-buffer
+    // attributes. Setting canvas.width / canvas.height changes the element's
+    // intrinsic size, which can cause the layout to reflow and the canvas to
+    // grow if any ancestor relies on content height.
+    canvas.style.width = `${rect.width}px`
+    canvas.style.height = `${rect.height}px`
 
     const pixelRatio = window.devicePixelRatio || 1
     const width = Math.round(rect.width * pixelRatio)
@@ -479,7 +502,7 @@ export function AuthModule() {
   }
 
   const handleLocalCanvasPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
-    if (!selectedChatRequestId || joinedChatRequestId !== selectedChatRequestId) {
+    if (!selectedChatRequestId || joinedChatRequestId !== selectedChatRequestId || !peerPresent) {
       return
     }
 
@@ -488,7 +511,7 @@ export function AuthModule() {
   }
 
   const handleLocalCanvasPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
-    if (!selectedChatRequestId || joinedChatRequestId !== selectedChatRequestId) {
+    if (!selectedChatRequestId || joinedChatRequestId !== selectedChatRequestId || !peerPresent) {
       return
     }
 
@@ -501,7 +524,7 @@ export function AuthModule() {
       kind: 'segment',
       from: localLastPointRef.current,
       to: nextPoint,
-      color: DRAW_COLOR,
+      color: drawColor,
       width: DRAW_WIDTH,
     }
 
@@ -515,7 +538,7 @@ export function AuthModule() {
   }
 
   const clearLocalCanvasAndNotify = (): void => {
-    if (!selectedChatRequestId || joinedChatRequestId !== selectedChatRequestId) {
+    if (!selectedChatRequestId || joinedChatRequestId !== selectedChatRequestId || !peerPresent) {
       return
     }
 
@@ -614,6 +637,7 @@ export function AuthModule() {
   useEffect(() => {
     localLastPointRef.current = null
     setJoinedChatRequestId(null)
+    setPeerPresent(false)
     clearCanvas(localCanvasRef.current)
     clearCanvas(remoteCanvasRef.current)
   }, [selectedChatRequestId])
@@ -653,9 +677,12 @@ export function AuthModule() {
       void loadDashboardDataRef.current(false)
     }
 
-    const onChatJoined = (payload: { requestId: string }) => {
+    const onChatJoined = (payload: { requestId: string; peers: string[] }) => {
       setJoinedChatRequestId(payload.requestId)
       openChat(payload.requestId)
+      if (payload.peers.length > 0) {
+        setPeerPresent(true)
+      }
     }
 
     const onDrawStroke = (payload: { requestId: string; stroke: unknown }) => {
@@ -676,6 +703,14 @@ export function AuthModule() {
       }
 
       clearCanvas(remoteCanvasRef.current)
+    }
+
+    const onDrawPeerJoined = () => {
+      setPeerPresent(true)
+    }
+
+    const onDrawPeerLeft = () => {
+      setPeerPresent(false)
     }
 
     const onSocketError = (payload: { message: string; status?: number }) => {
@@ -699,6 +734,8 @@ export function AuthModule() {
     socket.on('chat.requested', onChatRequested)
     socket.on('chat.response', onChatResponse)
     socket.on('chat.joined', onChatJoined)
+    socket.on('draw.peer.joined', onDrawPeerJoined)
+    socket.on('draw.peer.left', onDrawPeerLeft)
     socket.on('draw.stroke', onDrawStroke)
     socket.on('draw.clear', onDrawClear)
     socket.on('error', onSocketError)
@@ -708,6 +745,8 @@ export function AuthModule() {
       socket.off('chat.requested', onChatRequested)
       socket.off('chat.response', onChatResponse)
       socket.off('chat.joined', onChatJoined)
+      socket.off('draw.peer.joined', onDrawPeerJoined)
+      socket.off('draw.peer.left', onDrawPeerLeft)
       socket.off('draw.stroke', onDrawStroke)
       socket.off('draw.clear', onDrawClear)
       socket.off('error', onSocketError)
@@ -779,585 +818,76 @@ export function AuthModule() {
   }, [recentChats])
 
   return (
-    <main className={`bg-rose-0 text-rose-800 ${accessToken ? 'flex h-screen flex-col overflow-hidden' : 'min-h-screen'}`}>
-      <header className={`${accessToken ? 'border-b border-rose-300 bg-rose-200/80' : 'mb-6 border-b border-rose-300 bg-rose-200/80'}`}>
-        <nav className={`mx-auto flex w-full items-center justify-between ${accessToken ? 'max-w-4xl px-1 py-2' : 'max-w-xl px-4 py-3'}`}>
-          <img
-            src="/images/logo/logo_main.jpg"
-            alt="DrawkcaB logo"
-            className={`${accessToken ? 'h-10 w-32' : 'h-12 w-36'} rounded-md border border-rose-300 object-cover`}
-          />
-          <span className="rounded-md border border-rose-400 bg-rose-300 px-3 py-1 text-sm font-medium">
-            {accessToken ? 'Signed in' : 'Signed out'}
-          </span>
-        </nav>
-      </header>
-
-      <div className={`mx-auto px-4 ${accessToken ? 'flex-1 min-h-0 max-w-4xl w-full overflow-hidden pb-3 pt-2' : 'max-w-xl pb-8'}`}>
-        <section
-          className={
-            accessToken
-              ? 'w-full'
-              : 'rounded-xl border border-rose-300 bg-rose-100 p-4 shadow-sm shadow-rose-300/30'
-          }
-        >
-          {!accessToken && (
-            <>
-              <p className="mb-4 text-sm text-rose-700">Register with email, password, and display name. Login is allowed only after email confirmation.</p>
-            </>
-          )}
-
-          {!accessToken && !isConfirmRoute && (
-            <div className="mb-4 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setTab('register')}
-                className={`rounded-md border px-4 py-2 text-sm font-medium ${
-                  tab === 'register' ? 'border-rose-700 bg-rose-700 text-rose-100' : 'border-rose-300 bg-rose-100 text-rose-700'
-                }`}
-              >
-                Register
-              </button>
-              <button
-                type="button"
-                onClick={() => setTab('login')}
-                className={`rounded-md border px-4 py-2 text-sm font-medium ${
-                  tab === 'login' ? 'border-rose-700 bg-rose-700 text-rose-100' : 'border-rose-300 bg-rose-100 text-rose-700'
-                }`}
-              >
-                Login
-              </button>
-            </div>
-          )}
-
-          {!accessToken && tab === 'register' && (
-            <form className="flex flex-col gap-3" onSubmit={register}>
-              <label className="flex flex-col gap-1 text-sm">
-                Email
-                <input
-                  type="email"
-                  value={registerEmail}
-                  maxLength={EMAIL_MAX}
-                  onChange={(event) => setRegisterEmail(event.target.value)}
-                  placeholder="alice@example.com"
-                  required
-                  className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none placeholder:text-rose-500 focus:border-rose-600"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1 text-sm">
-                Password
-                <input
-                  type="password"
-                  value={registerPassword}
-                  minLength={PASSWORD_MIN}
-                  maxLength={PASSWORD_MAX}
-                  onChange={(event) => setRegisterPassword(event.target.value)}
-                  placeholder="At least 8 characters"
-                  required
-                  className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none placeholder:text-rose-500 focus:border-rose-600"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1 text-sm">
-                Display name
-                <input
-                  type="text"
-                  value={registerDisplayName}
-                  onChange={(event) => setRegisterDisplayName(normalizeRegisterDisplayNameInput(event.target.value))}
-                  placeholder="@alice"
-                  required
-                  className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none placeholder:text-rose-500 focus:border-rose-600"
-                />
-              </label>
-
-              <p className="text-xs text-rose-600">Must match ^@[a-zA-Z0-9_]{'{'}3,29{'}'}$</p>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="rounded-md border border-rose-700 bg-rose-700 px-4 py-2 font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSubmitting ? 'Registering…' : 'Create account'}
-              </button>
-            </form>
-          )}
-
-          {!accessToken && tab === 'login' && (
-            <form className="flex flex-col gap-3" onSubmit={login}>
-              <label className="flex flex-col gap-1 text-sm">
-                Email
-                <input
-                  type="email"
-                  value={loginEmail}
-                  maxLength={EMAIL_MAX}
-                  onChange={(event) => setLoginEmail(event.target.value)}
-                  placeholder="alice@example.com"
-                  required
-                  className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none placeholder:text-rose-500 focus:border-rose-600"
-                />
-              </label>
-
-              <label className="flex flex-col gap-1 text-sm">
-                Password
-                <input
-                  type="password"
-                  value={loginPassword}
-                  maxLength={PASSWORD_MAX}
-                  onChange={(event) => setLoginPassword(event.target.value)}
-                  placeholder="Your password"
-                  required
-                  className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none placeholder:text-rose-500 focus:border-rose-600"
-                />
-              </label>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="rounded-md border border-rose-700 bg-rose-700 px-4 py-2 font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
-              >
-                {isSubmitting ? 'Logging in…' : 'Login'}
-              </button>
-
-              {isConfirmRoute && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (typeof window !== 'undefined') {
-                      window.location.assign('/')
-                    }
-                  }}
-                  className="text-left text-sm font-medium text-rose-700 underline underline-offset-2 hover:text-rose-800"
-                >
-                  Need an account? Go to Register
-                </button>
-              )}
-
-            </form>
-          )}
-
-          {accessToken && (
-            <div className="mt-2 grid h-[calc(100%-0.5rem)] w-full gap-4 overflow-hidden lg:grid-cols-[20rem_minmax(0,1fr)]">
-              <aside className="flex h-full min-h-0 flex-col rounded-md border border-rose-300 bg-rose-200">
-                <div className="border-b border-rose-300 p-3">
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Search chats, users, requests, saved, blocked"
-                    className="w-full rounded-md border border-rose-300 bg-rose-100 px-3 py-2 text-sm outline-none placeholder:text-rose-500 focus:border-rose-600"
-                  />
-                </div>
-
-                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
-                  <section>
-                    <h2 className="mb-2 text-sm font-semibold text-rose-700">Public Users</h2>
-                    <ul className="flex flex-col gap-2">
-                      {filteredPublicUsers.map((user) => {
-                        const isSelf = user.id === profile?.id
-                        const isBlocked = blockedUserIdSet.has(user.id)
-                        const pendingRequest = pendingOutgoingByUserId.get(user.id)
-                        const hasAcceptedChat = acceptedChatByUserId.has(user.id)
-
-                        return (
-                          <li key={user.id} className="rounded-md border border-rose-300 bg-rose-100 p-2">
-                            <div className="mb-2 text-sm text-rose-700">{user.displayName}</div>
-                            {!isSelf && (
-                              <div className="flex flex-wrap gap-2">
-                                {!pendingRequest && !isBlocked && !hasAcceptedChat && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void sendRequest(user.displayName)}
-                                    disabled={activeActionKey === `request:${user.displayName}`}
-                                    className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {activeActionKey === `request:${user.displayName}` ? 'Sending…' : 'Send Request'}
-                                  </button>
-                                )}
-
-                                {hasAcceptedChat && !pendingRequest && !isBlocked && (
-                                  <button
-                                    type="button"
-                                    disabled
-                                    className="rounded-md border border-rose-400 bg-rose-300 px-3 py-1 text-xs font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-80"
-                                  >
-                                    Already chatting
-                                  </button>
-                                )}
-
-                                {pendingRequest && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void cancelRequest(pendingRequest.id)}
-                                    disabled={activeActionKey === `cancel-request:${pendingRequest.id}`}
-                                    className="rounded-md border border-red-700 bg-red-700 px-3 py-1 text-xs font-medium text-red-100 hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {activeActionKey === `cancel-request:${pendingRequest.id}` ? 'Canceling…' : 'Cancel'}
-                                  </button>
-                                )}
-
-                                {!isBlocked && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void blockUser(user.id)}
-                                    disabled={activeActionKey === `block:${user.id}`}
-                                    className="rounded-md border border-rose-700 bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {activeActionKey === `block:${user.id}` ? 'Blocking…' : 'Block'}
-                                  </button>
-                                )}
-
-                                {isBlocked && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void unblockUser(user.id)}
-                                    disabled={activeActionKey === `unblock:${user.id}`}
-                                    className="rounded-md border border-green-700 bg-green-700 px-3 py-1 text-xs font-medium text-green-100 hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {activeActionKey === `unblock:${user.id}` ? 'Unblocking…' : 'Unblock'}
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </li>
-                        )
-                      })}
-
-                      {filteredPublicUsers.length === 0 && <li className="text-xs text-rose-700">No public users found.</li>}
-                    </ul>
-                  </section>
-
-                  <section>
-                    <h2 className="mb-2 text-sm font-semibold text-rose-700">Recent Chats</h2>
-                    <ul className="flex flex-col gap-2">
-                      {filteredRecentChats.map((chat) => {
-                        const other = getOtherUser(chat)
-                        const isActive = selectedChatRequestId === chat.id
-                        return (
-                          <li key={chat.id}>
-                            <div
-                              className={`flex items-center gap-2 rounded-md border px-2 py-2 ${
-                                isActive ? 'border-rose-700 bg-rose-700 text-rose-100' : 'border-rose-300 bg-rose-100 text-rose-700'
-                              }`}
-                            >
-                              <button
-                                type="button"
-                                onClick={() => openChat(chat.id)}
-                                className="min-w-0 flex-1 truncate text-left text-sm"
-                              >
-                                {other.displayName}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => closeRecentChat(chat.id)}
-                                className={`rounded-md p-1 ${isActive ? 'hover:bg-rose-800' : 'hover:bg-rose-200'}`}
-                                aria-label={`Close chat with ${other.displayName}`}
-                                title="Close chat"
-                              >
-                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                                  <path d="M18 6L6 18" />
-                                  <path d="M6 6l12 12" />
-                                </svg>
-                              </button>
-                            </div>
-                          </li>
-                        )
-                      })}
-
-                      {filteredRecentChats.length === 0 && <li className="text-xs text-rose-700">No recent chats.</li>}
-                    </ul>
-                  </section>
-
-                  <section>
-                    <h2 className="mb-2 text-sm font-semibold text-rose-700">Chat Requests</h2>
-                    <ul className="flex flex-col gap-2">
-                      {filteredChatRequests.map((request) => {
-                        const other = getOtherUser(request)
-                        const isIncomingPending = request.toUserId === currentUserId && request.status === 'PENDING'
-                        const isOutgoingPending = request.fromUserId === currentUserId && request.status === 'PENDING'
-
-                        return (
-                          <li key={request.id} className="rounded-md border border-rose-300 bg-rose-100 p-2">
-                            <div className="mb-2 text-xs text-rose-700">
-                              {other.displayName} — {request.status}
-                            </div>
-                            <div className="flex flex-wrap gap-2">
-                              {isIncomingPending && (
-                                <>
-                                  <button
-                                    type="button"
-                                    onClick={() => void respondToRequest(request.id, 'ACCEPTED')}
-                                    disabled={activeActionKey === `request-status:${request.id}:ACCEPTED`}
-                                    className="rounded-md border border-green-700 bg-green-700 px-3 py-1 text-xs font-medium text-green-100 hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {activeActionKey === `request-status:${request.id}:ACCEPTED` ? 'Accepting…' : 'Accept'}
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => void respondToRequest(request.id, 'REJECTED')}
-                                    disabled={activeActionKey === `request-status:${request.id}:REJECTED`}
-                                    className="rounded-md border border-red-700 bg-red-700 px-3 py-1 text-xs font-medium text-red-100 hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {activeActionKey === `request-status:${request.id}:REJECTED` ? 'Rejecting…' : 'Reject'}
-                                  </button>
-                                </>
-                              )}
-
-                              {isOutgoingPending && (
-                                <button
-                                  type="button"
-                                  onClick={() => void cancelRequest(request.id)}
-                                  disabled={activeActionKey === `cancel-request:${request.id}`}
-                                  className="rounded-md border border-red-700 bg-red-700 px-3 py-1 text-xs font-medium text-red-100 hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-70"
-                                >
-                                  {activeActionKey === `cancel-request:${request.id}` ? 'Canceling…' : 'Cancel'}
-                                </button>
-                              )}
-                            </div>
-                          </li>
-                        )
-                      })}
-
-                      {filteredChatRequests.length === 0 && <li className="text-xs text-rose-700">No chat requests.</li>}
-                    </ul>
-                  </section>
-
-                  <section>
-                    <h2 className="mb-2 text-sm font-semibold text-rose-700">Saved Chats</h2>
-                    <ul className="flex flex-col gap-2">
-                      {filteredSavedChats.map((savedChat) => (
-                        <li key={savedChat.id} className="rounded-md border border-rose-300 bg-rose-100 p-2">
-                          <div className="mb-2 text-xs text-rose-700">{getOtherUser(savedChat.chatRequest).displayName}</div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => openChat(savedChat.chatRequestId)}
-                              className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800"
-                            >
-                              Open
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void removeSavedChat(savedChat.id)}
-                              disabled={activeActionKey === `delete-chat:${savedChat.id}`}
-                              className="rounded-md border border-red-700 bg-red-700 px-3 py-1 text-xs font-medium text-red-100 hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                              {activeActionKey === `delete-chat:${savedChat.id}` ? 'Deleting…' : 'Delete'}
-                            </button>
-                          </div>
-                        </li>
-                      ))}
-
-                      {filteredSavedChats.length === 0 && <li className="text-xs text-rose-700">No saved chats.</li>}
-                    </ul>
-                  </section>
-
-                  <section>
-                    <h2 className="mb-2 text-sm font-semibold text-rose-700">Blocked Users</h2>
-                    <ul className="flex flex-col gap-2">
-                      {filteredBlockedUsers.map((blockedUser) => (
-                        <li key={blockedUser.id} className="rounded-md border border-rose-300 bg-rose-100 p-2">
-                          <div className="mb-2 text-xs text-rose-700">{blockedUser.displayName}</div>
-                          <button
-                            type="button"
-                            onClick={() => void unblockUser(blockedUser.id)}
-                            disabled={activeActionKey === `unblock:${blockedUser.id}`}
-                            className="rounded-md border border-green-700 bg-green-700 px-3 py-1 text-xs font-medium text-green-100 hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-70"
-                          >
-                            {activeActionKey === `unblock:${blockedUser.id}` ? 'Unblocking…' : 'Unblock'}
-                          </button>
-                        </li>
-                      ))}
-
-                      {filteredBlockedUsers.length === 0 && <li className="text-xs text-rose-700">No blocked users.</li>}
-                    </ul>
-                  </section>
-                </div>
-
-                <div className="border-t border-rose-300 p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="group relative">
-                      <button
-                        type="button"
-                        onClick={() => setCenterView('profile')}
-                        aria-label="Profile"
-                        title="Profile"
-                        className="rounded-md border border-rose-700 bg-rose-700 p-2 text-rose-100 hover:bg-rose-800"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                          <path d="M20 21a8 8 0 0 0-16 0" />
-                          <circle cx="12" cy="8" r="4" />
-                        </svg>
-                      </button>
-                      <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded-md border border-rose-300 bg-rose-100 px-2 py-1 text-xs text-rose-700 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                        Profile
-                      </span>
-                    </div>
-
-                    <div className="group relative">
-                      <button
-                        type="button"
-                        onClick={logout}
-                        aria-label="Logout"
-                        title="Logout"
-                        className="rounded-md border border-rose-700 bg-rose-100 p-2 text-rose-700 hover:bg-rose-200"
-                      >
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                          <path d="M16 17l5-5-5-5" />
-                          <path d="M21 12H9" />
-                        </svg>
-                      </button>
-                      <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded-md border border-rose-300 bg-rose-100 px-2 py-1 text-xs text-rose-700 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-                        Logout
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </aside>
-
-              <section className="min-w-0 h-full min-h-0 overflow-hidden rounded-md border border-rose-300 bg-rose-200 p-4">
-                {isDashboardLoading && <p className="text-sm text-rose-700">Loading your workspace…</p>}
-
-                {!isDashboardLoading && profile && centerView === 'profile' && (
-                  <form className="mx-auto flex w-full max-w-lg flex-col gap-3" onSubmit={updateProfile}>
-                    <div className="mb-1 flex items-center justify-between gap-3">
-                      <h2 className="text-base font-semibold">My Profile</h2>
-                      <button
-                        type="button"
-                        onClick={() => setCenterView('chat')}
-                        className="rounded-md border border-rose-700 bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-200"
-                      >
-                        Back to chat
-                      </button>
-                    </div>
-
-                    <p className="text-sm text-rose-700">Email: {profile.email}</p>
-
-                    <label className="flex flex-col gap-1 text-sm">
-                      Display name
-                      <input
-                        type="text"
-                        value={profileDisplayName}
-                        onChange={(event) => setProfileDisplayName(normalizeProfileDisplayNameInput(event.target.value))}
-                        className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600"
-                      />
-                    </label>
-
-                    <label className="flex flex-col gap-1 text-sm">
-                      Profile visibility
-                      <select
-                        value={profileMode}
-                        onChange={(event) => setProfileMode(event.target.value as UserMode)}
-                        className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600"
-                      >
-                        <option value="PRIVATE">Private (default)</option>
-                        <option value="PUBLIC">Public</option>
-                      </select>
-                    </label>
-
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="submit"
-                        disabled={isUpdatingProfile}
-                        className="rounded-md border border-rose-700 bg-rose-700 px-4 py-2 text-sm font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {isUpdatingProfile ? 'Saving…' : 'Save profile'}
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={deleteMyAccount}
-                        disabled={isDeletingAccount}
-                        className="rounded-md border border-red-700 bg-red-700 px-4 py-2 text-sm font-medium text-red-100 hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-70"
-                      >
-                        {isDeletingAccount ? 'Deleting…' : 'Delete account'}
-                      </button>
-                    </div>
-                  </form>
-                )}
-
-                {!isDashboardLoading && profile && centerView === 'chat' && (
-                  <div className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col items-center gap-4 overflow-hidden">
-                    {!selectedChat && (
-                      <div className="flex min-h-80 w-full items-center justify-center rounded-md border border-rose-300 bg-rose-100 p-6 text-center">
-                        <div>
-                          <h2 className="mb-2 text-lg font-semibold">Start a conversation</h2>
-                          <p className="text-sm text-rose-700">Select a recent chat from the left to open your chat canvases.</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {selectedChat && (
-                      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-                        {(() => {
-                          const isDrawReady = joinedChatRequestId === selectedChat.id
-
-                          return (
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                          <h2 className="text-base font-semibold">Chat with {getOtherUser(selectedChat).displayName}</h2>
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`rounded-md border px-2 py-1 text-[11px] font-medium ${
-                                isDrawReady
-                                  ? 'border-green-700 bg-green-700 text-green-100'
-                                  : 'border-rose-400 bg-rose-300 text-rose-700'
-                              }`}
-                            >
-                              {isDrawReady ? 'Ready' : 'Joining…'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={clearLocalCanvasAndNotify}
-                              disabled={joinedChatRequestId !== selectedChat.id}
-                              className="rounded-md border border-rose-700 bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Clear mine
-                            </button>
-                            {!savedRequestIdSet.has(selectedChat.id) && (
-                              <button
-                                type="button"
-                                onClick={() => void saveAcceptedChat(selectedChat.id)}
-                                disabled={activeActionKey === `save-chat:${selectedChat.id}`}
-                                className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
-                              >
-                                {activeActionKey === `save-chat:${selectedChat.id}` ? 'Saving…' : 'Save chat'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                          )
-                        })()}
-
-                        <div className="grid min-h-0 flex-1 gap-4 overflow-hidden grid-rows-2">
-                          <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
-                            <p className="mb-2 text-xs text-rose-700">Canvas 1</p>
-                            <canvas
-                              ref={localCanvasRef}
-                              onPointerDown={handleLocalCanvasPointerDown}
-                              onPointerMove={handleLocalCanvasPointerMove}
-                              onPointerUp={stopLocalDrawing}
-                              onPointerLeave={stopLocalDrawing}
-                              onPointerCancel={stopLocalDrawing}
-                              className="h-full min-h-0 w-full touch-none rounded-md border border-rose-300 bg-rose-50"
-                            />
-                          </div>
-                          <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
-                            <p className="mb-2 text-xs text-rose-700">Canvas 2</p>
-                            <canvas ref={remoteCanvasRef} className="h-full min-h-0 w-full rounded-md border border-rose-300 bg-rose-50" />
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </section>
-            </div>
-          )}
-        </section>
-
-        <NoticeBanner notice={notice} />
-      </div>
-    </main>
+    <AuthModuleView
+      accessToken={accessToken}
+      isConfirmRoute={isConfirmRoute}
+      tab={tab}
+      setTab={setTab}
+      register={register}
+      login={login}
+      registerEmail={registerEmail}
+      setRegisterEmail={setRegisterEmail}
+      registerPassword={registerPassword}
+      setRegisterPassword={setRegisterPassword}
+      registerDisplayName={registerDisplayName}
+      setRegisterDisplayName={setRegisterDisplayName}
+      normalizeRegisterDisplayNameInput={normalizeRegisterDisplayNameInput}
+      loginEmail={loginEmail}
+      setLoginEmail={setLoginEmail}
+      loginPassword={loginPassword}
+      setLoginPassword={setLoginPassword}
+      isSubmitting={isSubmitting}
+      searchQuery={searchQuery}
+      setSearchQuery={setSearchQuery}
+      filteredPublicUsers={filteredPublicUsers}
+      profile={profile}
+      blockedUserIdSet={blockedUserIdSet}
+      pendingOutgoingByUserId={pendingOutgoingByUserId}
+      acceptedChatByUserId={acceptedChatByUserId}
+      activeActionKey={activeActionKey}
+      sendRequest={sendRequest}
+      cancelRequest={cancelRequest}
+      blockUser={blockUser}
+      unblockUser={unblockUser}
+      filteredRecentChats={filteredRecentChats}
+      getOtherUser={getOtherUser}
+      selectedChatRequestId={selectedChatRequestId}
+      openChat={openChat}
+      closeRecentChat={closeRecentChat}
+      filteredChatRequests={filteredChatRequests}
+      currentUserId={currentUserId}
+      respondToRequest={respondToRequest}
+      filteredSavedChats={filteredSavedChats}
+      removeSavedChat={removeSavedChat}
+      filteredBlockedUsers={filteredBlockedUsers}
+      setCenterView={setCenterView}
+      logout={logout}
+      isDashboardLoading={isDashboardLoading}
+      centerView={centerView}
+      updateProfile={updateProfile}
+      profileDisplayName={profileDisplayName}
+      setProfileDisplayName={setProfileDisplayName}
+      normalizeProfileDisplayNameInput={normalizeProfileDisplayNameInput}
+      profileMode={profileMode}
+      setProfileMode={setProfileMode}
+      isUpdatingProfile={isUpdatingProfile}
+      deleteMyAccount={deleteMyAccount}
+      isDeletingAccount={isDeletingAccount}
+      selectedChat={selectedChat}
+      joinedChatRequestId={joinedChatRequestId}
+      peerPresent={peerPresent}
+      clearLocalCanvasAndNotify={clearLocalCanvasAndNotify}
+      savedRequestIdSet={savedRequestIdSet}
+      saveAcceptedChat={saveAcceptedChat}
+      localCanvasRef={localCanvasRef}
+      remoteCanvasRef={remoteCanvasRef}
+      handleLocalCanvasPointerDown={handleLocalCanvasPointerDown}
+      handleLocalCanvasPointerMove={handleLocalCanvasPointerMove}
+      stopLocalDrawing={stopLocalDrawing}
+      drawColor={drawColor}
+      setDrawColor={setDrawColor}
+      presetColors={PRESET_COLORS}
+      notice={notice}
+    />
   )
 }

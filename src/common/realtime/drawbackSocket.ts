@@ -20,6 +20,7 @@ type ChatResponsePayload = {
 type ChatJoinedPayload = {
   roomId: string
   requestId: string
+  peers: string[]
 }
 
 type SocketErrorPayload = {
@@ -36,10 +37,20 @@ type DrawClearPayload = {
   requestId: string
 }
 
+type DrawPeerJoinedPayload = {
+  userId: string
+}
+
+type DrawPeerLeftPayload = {
+  userId: string
+}
+
 type ServerToClientEvents = {
   'chat.requested': (payload: ChatRequestedPayload) => void
   'chat.response': (payload: ChatResponsePayload) => void
   'chat.joined': (payload: ChatJoinedPayload) => void
+  'draw.peer.joined': (payload: DrawPeerJoinedPayload) => void
+  'draw.peer.left': (payload: DrawPeerLeftPayload) => void
   'draw.stroke': (payload: DrawStrokePayload) => void
   'draw.clear': (payload: DrawClearPayload) => void
   error: (payload: SocketErrorPayload) => void
@@ -65,7 +76,18 @@ const normalizeBaseUrl = (baseUrl: string): string => {
   return value
 }
 
-const buildNamespaceUrl = (baseUrl: string): string => `${normalizeBaseUrl(baseUrl)}/drawback`
+const buildNamespaceUrl = (baseUrl: string): string => {
+  const normalized = normalizeBaseUrl(baseUrl)
+  // Use only the origin so that a path prefix in VITE_BACKEND_URL (e.g. /api)
+  // is not treated as part of the Socket.IO namespace.
+  try {
+    const { origin } = new URL(normalized)
+    return `${origin}/drawback`
+  } catch {
+    // If URL parsing fails fall back to the normalized value
+    return `${normalized}/drawback`
+  }
+}
 
 export const getOrCreateDrawbackSocket = (baseUrl: string, token: string): DrawbackSocket => {
   if (!token.trim()) {
