@@ -574,6 +574,20 @@ export function AuthModule() {
                 {isSubmitting ? 'Logging in…' : 'Login'}
               </button>
 
+              {isConfirmRoute && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.location.assign('/')
+                    }
+                  }}
+                  className="text-left text-sm font-medium text-rose-700 underline underline-offset-2 hover:text-rose-800"
+                >
+                  Need an account? Go to Register
+                </button>
+              )}
+
             </form>
           )}
 

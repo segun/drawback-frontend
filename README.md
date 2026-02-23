@@ -18,6 +18,26 @@ yarn dev
 yarn typecheck
 ```
 
+## Production SPA routing (important)
+
+This app reads `window.location.pathname` and supports a confirmation route at `/confirm`.
+
+In local dev (`vite`), deep links work automatically. In production, your web server must route unknown paths to `index.html`, otherwise links like:
+
+`https://drawback.chat/confirm?status=error&reason=Invalid%20or%20expired%20activation%20token`
+
+will return `404` before React loads.
+
+For Nginx, use:
+
+```nginx
+location / {
+	try_files $uri $uri/ /index.html;
+}
+```
+
+Reference server config: `deploy/nginx/drawback.chat.conf`
+
 ## Backend integration
 
 Set `VITE_BACKEND_URL` to your API base URL.
