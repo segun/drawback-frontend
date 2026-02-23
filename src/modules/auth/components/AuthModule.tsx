@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { ApiError } from '../../../common/api/apiError'
 import { NoticeBanner, type Notice } from '../../../common/components/NoticeBanner'
+import { disconnectDrawbackSocket, emitChatJoin, emitDrawClear, emitDrawLeave, emitDrawStroke, getOrCreateDrawbackSocket } from '../../../common/realtime/drawbackSocket'
 import { createAuthApi } from '../api/authApi'
 import { type BlockedUser, type ChatRequest, createSocialApi, type SavedChat, type UserMode, type UserProfile } from '../api/socialApi'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../constants'
@@ -9,8 +10,52 @@ import { isValidDisplayName } from '../utils/displayName'
 type AuthTab = 'register' | 'login'
 type CenterView = 'chat' | 'profile'
 
+type NormalizedPoint = {
+  x: number
+  y: number
+}
+
+type DrawSegmentStroke = {
+  kind: 'segment'
+  from: NormalizedPoint
+  to: NormalizedPoint
+  color: string
+  width: number
+}
+
+const DRAW_COLOR = '#be123c'
+const DRAW_WIDTH = 2
+
+const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+
+const isNormalizedPoint = (value: unknown): value is NormalizedPoint => {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const candidate = value as { x?: unknown; y?: unknown }
+  return isFiniteNumber(candidate.x) && isFiniteNumber(candidate.y)
+}
+
+const isDrawSegmentStroke = (value: unknown): value is DrawSegmentStroke => {
+  if (!value || typeof value !== 'object') {
+    return false
+  }
+
+  const candidate = value as { kind?: unknown; from?: unknown; to?: unknown; color?: unknown; width?: unknown }
+
+  return (
+    candidate.kind === 'segment'
+    && isNormalizedPoint(candidate.from)
+    && isNormalizedPoint(candidate.to)
+    && typeof candidate.color === 'string'
+    && isFiniteNumber(candidate.width)
+  )
+}
+
 export function AuthModule() {
-  const authApi = useMemo(() => createAuthApi(String(import.meta.env.VITE_BACKEND_URL ?? '').trim()), [])
+  const backendUrl = String(import.meta.env.VITE_BACKEND_URL ?? '').trim()
+  const authApi = useMemo(() => createAuthApi(backendUrl), [backendUrl])
   const socialApi = useMemo(() => createSocialApi(authApi), [authApi])
   const [isConfirmRoute] = useState<boolean>(() => typeof window !== 'undefined' && window.location.pathname === '/confirm')
 
@@ -32,6 +77,8 @@ export function AuthModule() {
   const [centerView, setCenterView] = useState<CenterView>('chat')
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedChatRequestId, setSelectedChatRequestId] = useState<string | null>(null)
+  const [joinedChatRequestId, setJoinedChatRequestId] = useState<string | null>(null)
+  const [closedRecentChatRequestIds, setClosedRecentChatRequestIds] = useState<Set<string>>(new Set())
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [profileDisplayName, setProfileDisplayName] = useState('@')
@@ -40,9 +87,75 @@ export function AuthModule() {
   const [chatRequests, setChatRequests] = useState<ChatRequest[]>([])
   const [savedChats, setSavedChats] = useState<SavedChat[]>([])
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([])
+  const loadDashboardDataRef = useRef<(showLoading?: boolean) => Promise<void>>(async () => {})
+  const selectedChatRequestIdRef = useRef<string | null>(null)
+  const localCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const remoteCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const localLastPointRef = useRef<NormalizedPoint | null>(null)
 
   const showNotice = (text: string, type: Notice['type'] = 'info'): void => {
     setNotice({ text, type })
+  }
+
+  const syncCanvasResolution = (canvas: HTMLCanvasElement): CanvasRenderingContext2D | null => {
+    const context = canvas.getContext('2d')
+    if (!context) {
+      return null
+    }
+
+    const rect = canvas.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) {
+      return null
+    }
+
+    const pixelRatio = window.devicePixelRatio || 1
+    const width = Math.round(rect.width * pixelRatio)
+    const height = Math.round(rect.height * pixelRatio)
+
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width
+      canvas.height = height
+    }
+
+    context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
+    context.lineCap = 'round'
+    context.lineJoin = 'round'
+
+    return context
+  }
+
+  const drawSegmentOnCanvas = (canvas: HTMLCanvasElement | null, stroke: DrawSegmentStroke): void => {
+    if (!canvas) {
+      return
+    }
+
+    const context = syncCanvasResolution(canvas)
+    if (!context) {
+      return
+    }
+
+    const width = canvas.clientWidth
+    const height = canvas.clientHeight
+
+    context.strokeStyle = stroke.color
+    context.lineWidth = stroke.width
+    context.beginPath()
+    context.moveTo(stroke.from.x * width, stroke.from.y * height)
+    context.lineTo(stroke.to.x * width, stroke.to.y * height)
+    context.stroke()
+  }
+
+  const clearCanvas = (canvas: HTMLCanvasElement | null): void => {
+    if (!canvas) {
+      return
+    }
+
+    const context = syncCanvasResolution(canvas)
+    if (!context) {
+      return
+    }
+
+    context.clearRect(0, 0, canvas.clientWidth, canvas.clientHeight)
   }
 
   const normalizeRegisterDisplayNameInput = (value: string): string => {
@@ -114,6 +227,9 @@ export function AuthModule() {
     setCenterView('chat')
     setSearchQuery('')
     setSelectedChatRequestId(null)
+    setJoinedChatRequestId(null)
+    selectedChatRequestIdRef.current = null
+    setClosedRecentChatRequestIds(new Set())
   }
 
   const loadDashboardData = async (showLoading = true): Promise<void> => {
@@ -151,6 +267,10 @@ export function AuthModule() {
       }
     }
   }
+
+  useEffect(() => {
+    loadDashboardDataRef.current = loadDashboardData
+  }, [loadDashboardData])
 
   useEffect(() => {
     if (!isConfirmRoute) {
@@ -237,6 +357,8 @@ export function AuthModule() {
   }
 
   const logout = (): void => {
+    emitDrawLeave()
+    disconnectDrawbackSocket()
     authApi.logout()
     setAccessToken(null)
     resetDashboardData()
@@ -311,6 +433,96 @@ export function AuthModule() {
     })
   }
 
+  const openChat = (chatRequestId: string): void => {
+    setClosedRecentChatRequestIds((previous) => {
+      if (!previous.has(chatRequestId)) {
+        return previous
+      }
+
+      const next = new Set(previous)
+      next.delete(chatRequestId)
+      return next
+    })
+    setCenterView('chat')
+    setSelectedChatRequestId(chatRequestId)
+  }
+
+  const closeRecentChat = (chatRequestId: string): void => {
+    setClosedRecentChatRequestIds((previous) => {
+      if (previous.has(chatRequestId)) {
+        return previous
+      }
+
+      const next = new Set(previous)
+      next.add(chatRequestId)
+      return next
+    })
+
+    if (selectedChatRequestId === chatRequestId) {
+      setSelectedChatRequestId(null)
+    }
+  }
+
+  const getNormalizedPointFromPointerEvent = (event: ReactPointerEvent<HTMLCanvasElement>): NormalizedPoint => {
+    const rect = event.currentTarget.getBoundingClientRect()
+    if (rect.width === 0 || rect.height === 0) {
+      return { x: 0, y: 0 }
+    }
+
+    const x = (event.clientX - rect.left) / rect.width
+    const y = (event.clientY - rect.top) / rect.height
+
+    return {
+      x: Math.max(0, Math.min(1, x)),
+      y: Math.max(0, Math.min(1, y)),
+    }
+  }
+
+  const handleLocalCanvasPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
+    if (!selectedChatRequestId || joinedChatRequestId !== selectedChatRequestId) {
+      return
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId)
+    localLastPointRef.current = getNormalizedPointFromPointerEvent(event)
+  }
+
+  const handleLocalCanvasPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
+    if (!selectedChatRequestId || joinedChatRequestId !== selectedChatRequestId) {
+      return
+    }
+
+    if (!localLastPointRef.current) {
+      return
+    }
+
+    const nextPoint = getNormalizedPointFromPointerEvent(event)
+    const stroke: DrawSegmentStroke = {
+      kind: 'segment',
+      from: localLastPointRef.current,
+      to: nextPoint,
+      color: DRAW_COLOR,
+      width: DRAW_WIDTH,
+    }
+
+    drawSegmentOnCanvas(localCanvasRef.current, stroke)
+    emitDrawStroke(selectedChatRequestId, stroke)
+    localLastPointRef.current = nextPoint
+  }
+
+  const stopLocalDrawing = (): void => {
+    localLastPointRef.current = null
+  }
+
+  const clearLocalCanvasAndNotify = (): void => {
+    if (!selectedChatRequestId || joinedChatRequestId !== selectedChatRequestId) {
+      return
+    }
+
+    clearCanvas(localCanvasRef.current)
+    emitDrawClear(selectedChatRequestId)
+  }
+
   const cancelRequest = async (chatRequestId: string): Promise<void> => {
     await withAction(`cancel-request:${chatRequestId}`, async () => {
       try {
@@ -329,8 +541,8 @@ export function AuthModule() {
         const response = await socialApi.respondToChatRequest(requestId, status === 'ACCEPTED')
         showNotice(status === 'ACCEPTED' ? 'Chat request accepted.' : 'Chat request rejected.', 'success')
         if (status === 'ACCEPTED') {
-          setCenterView('chat')
-          setSelectedChatRequestId(response.request.id)
+          emitChatJoin(response.request.id)
+          openChat(response.request.id)
         }
         await loadDashboardData(false)
       } catch (error) {
@@ -395,6 +607,120 @@ export function AuthModule() {
     void loadDashboardData(true)
   }, [accessToken])
 
+  useEffect(() => {
+    selectedChatRequestIdRef.current = selectedChatRequestId
+  }, [selectedChatRequestId])
+
+  useEffect(() => {
+    localLastPointRef.current = null
+    setJoinedChatRequestId(null)
+    clearCanvas(localCanvasRef.current)
+    clearCanvas(remoteCanvasRef.current)
+  }, [selectedChatRequestId])
+
+  useEffect(() => {
+    if (!selectedChatRequestId || !accessToken) {
+      return
+    }
+
+    emitChatJoin(selectedChatRequestId)
+  }, [selectedChatRequestId, accessToken])
+
+  useEffect(() => {
+    if (!accessToken) {
+      disconnectDrawbackSocket()
+      return
+    }
+
+    let socket
+    try {
+      socket = getOrCreateDrawbackSocket(backendUrl, accessToken)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Failed to initialize realtime connection.'
+      showNotice(message, 'error')
+      return
+    }
+
+    const onChatRequested = (payload: { fromUser: { displayName: string } }) => {
+      showNotice(`${payload.fromUser.displayName} sent you a chat request.`, 'info')
+      void loadDashboardDataRef.current(false)
+    }
+
+    const onChatResponse = (payload: { accepted: boolean; requestId: string }) => {
+      if (payload.accepted) {
+        emitChatJoin(payload.requestId)
+      }
+      void loadDashboardDataRef.current(false)
+    }
+
+    const onChatJoined = (payload: { requestId: string }) => {
+      setJoinedChatRequestId(payload.requestId)
+      openChat(payload.requestId)
+    }
+
+    const onDrawStroke = (payload: { requestId: string; stroke: unknown }) => {
+      if (!isDrawSegmentStroke(payload.stroke)) {
+        return
+      }
+
+      if (payload.requestId !== selectedChatRequestIdRef.current) {
+        return
+      }
+
+      drawSegmentOnCanvas(remoteCanvasRef.current, payload.stroke)
+    }
+
+    const onDrawClear = (payload: { requestId: string }) => {
+      if (payload.requestId !== selectedChatRequestIdRef.current) {
+        return
+      }
+
+      clearCanvas(remoteCanvasRef.current)
+    }
+
+    const onSocketError = (payload: { message: string; status?: number }) => {
+      const statusPrefix = payload.status ? `[WS ${payload.status}] ` : ''
+      showNotice(`${statusPrefix}${payload.message}`, 'error')
+    }
+
+    const onConnectError = (error: Error) => {
+      if (error.message === 'Unauthorized') {
+        disconnectDrawbackSocket()
+        authApi.logout()
+        setAccessToken(null)
+        resetDashboardData()
+        showNotice('Session expired. Please log in again.', 'error')
+        return
+      }
+
+      showNotice(`Realtime connection failed: ${error.message}`, 'error')
+    }
+
+    socket.on('chat.requested', onChatRequested)
+    socket.on('chat.response', onChatResponse)
+    socket.on('chat.joined', onChatJoined)
+    socket.on('draw.stroke', onDrawStroke)
+    socket.on('draw.clear', onDrawClear)
+    socket.on('error', onSocketError)
+    socket.on('connect_error', onConnectError)
+
+    return () => {
+      socket.off('chat.requested', onChatRequested)
+      socket.off('chat.response', onChatResponse)
+      socket.off('chat.joined', onChatJoined)
+      socket.off('draw.stroke', onDrawStroke)
+      socket.off('draw.clear', onDrawClear)
+      socket.off('error', onSocketError)
+      socket.off('connect_error', onConnectError)
+    }
+  }, [accessToken, authApi, backendUrl])
+
+  useEffect(() => {
+    return () => {
+      disconnectDrawbackSocket()
+    }
+  }, [])
+
   const currentUserId = profile?.id
 
   const incomingRequests = chatRequests.filter((request) => request.toUserId === currentUserId)
@@ -420,7 +746,7 @@ export function AuthModule() {
   const includesSearch = (value: string): boolean => !searchTerm || value.toLowerCase().includes(searchTerm)
 
   const filteredPublicUsers = publicUsers.filter((user) => includesSearch(`${user.displayName} ${user.email}`))
-  const filteredRecentChats = recentChats.filter((chat) => includesSearch(getOtherUser(chat).displayName))
+  const filteredRecentChats = recentChats.filter((chat) => !closedRecentChatRequestIds.has(chat.id) && includesSearch(getOtherUser(chat).displayName))
   const filteredChatRequests = chatRequests.filter((request) => {
     const other = getOtherUser(request)
     return includesSearch(`${other.displayName} ${request.status}`)
@@ -429,6 +755,7 @@ export function AuthModule() {
   const filteredBlockedUsers = blockedUsers.filter((user) => includesSearch(`${user.displayName} ${user.email}`))
 
   const selectedChat = selectedChatRequestId ? recentChats.find((chat) => chat.id === selectedChatRequestId) ?? null : null
+  const acceptedChatByUserId = new Set(recentChats.map((chat) => getOtherUser(chat).id))
 
   useEffect(() => {
     if (!selectedChatRequestId) {
@@ -440,27 +767,45 @@ export function AuthModule() {
     }
   }, [selectedChatRequestId, recentChats])
 
+  useEffect(() => {
+    const recentChatIdSet = new Set(recentChats.map((chat) => chat.id))
+    setClosedRecentChatRequestIds((previous) => {
+      const next = new Set(Array.from(previous).filter((chatRequestId) => recentChatIdSet.has(chatRequestId)))
+      if (next.size === previous.size) {
+        return previous
+      }
+      return next
+    })
+  }, [recentChats])
+
   return (
-    <main className="min-h-screen bg-rose-0 text-rose-800">
-      <header className="mb-6 border-b border-rose-300 bg-rose-200/80">
-        <nav className={`mx-auto flex w-full items-center justify-between px-4 py-3 ${accessToken ? 'max-w-4xl' : 'max-w-xl'}`}>
-          <img src="/images/logo/logo_main.jpg" alt="DrawkcaB logo" className="h-12 w-36 rounded-md border border-rose-300 object-cover" />
+    <main className={`bg-rose-0 text-rose-800 ${accessToken ? 'flex h-screen flex-col overflow-hidden' : 'min-h-screen'}`}>
+      <header className={`${accessToken ? 'border-b border-rose-300 bg-rose-200/80' : 'mb-6 border-b border-rose-300 bg-rose-200/80'}`}>
+        <nav className={`mx-auto flex w-full items-center justify-between ${accessToken ? 'max-w-4xl px-1 py-2' : 'max-w-xl px-4 py-3'}`}>
+          <img
+            src="/images/logo/logo_main.jpg"
+            alt="DrawkcaB logo"
+            className={`${accessToken ? 'h-10 w-32' : 'h-12 w-36'} rounded-md border border-rose-300 object-cover`}
+          />
           <span className="rounded-md border border-rose-400 bg-rose-300 px-3 py-1 text-sm font-medium">
             {accessToken ? 'Signed in' : 'Signed out'}
           </span>
         </nav>
       </header>
 
-      <div className={`mx-auto px-4 pb-8 ${accessToken ? 'max-w-4xl' : 'max-w-xl'}`}>
-        <section className="rounded-xl border border-rose-300 bg-rose-100 p-4 shadow-sm shadow-rose-300/30">
+      <div className={`mx-auto px-4 ${accessToken ? 'flex-1 min-h-0 max-w-4xl w-full overflow-hidden pb-3 pt-2' : 'max-w-xl pb-8'}`}>
+        <section
+          className={
+            accessToken
+              ? 'w-full'
+              : 'rounded-xl border border-rose-300 bg-rose-100 p-4 shadow-sm shadow-rose-300/30'
+          }
+        >
           {!accessToken && (
             <>
-              <h1 className="mb-2 text-xl font-semibold">Auth</h1>
               <p className="mb-4 text-sm text-rose-700">Register with email, password, and display name. Login is allowed only after email confirmation.</p>
             </>
           )}
-
-          {accessToken && <h1 className="mb-2 text-xl font-semibold">Chat</h1>}
 
           {!accessToken && !isConfirmRoute && (
             <div className="mb-4 grid grid-cols-2 gap-2">
@@ -592,8 +937,8 @@ export function AuthModule() {
           )}
 
           {accessToken && (
-            <div className="mt-4 grid gap-4 lg:grid-cols-[20rem_minmax(0,1fr)]">
-              <aside className="flex h-[calc(100vh-14rem)] min-h-[36rem] flex-col rounded-md border border-rose-300 bg-rose-200">
+            <div className="mt-2 grid h-[calc(100%-0.5rem)] w-full gap-4 overflow-hidden lg:grid-cols-[20rem_minmax(0,1fr)]">
+              <aside className="flex h-full min-h-0 flex-col rounded-md border border-rose-300 bg-rose-200">
                 <div className="border-b border-rose-300 p-3">
                   <input
                     type="text"
@@ -612,13 +957,14 @@ export function AuthModule() {
                         const isSelf = user.id === profile?.id
                         const isBlocked = blockedUserIdSet.has(user.id)
                         const pendingRequest = pendingOutgoingByUserId.get(user.id)
+                        const hasAcceptedChat = acceptedChatByUserId.has(user.id)
 
                         return (
                           <li key={user.id} className="rounded-md border border-rose-300 bg-rose-100 p-2">
                             <div className="mb-2 text-sm text-rose-700">{user.displayName}</div>
                             {!isSelf && (
                               <div className="flex flex-wrap gap-2">
-                                {!pendingRequest && !isBlocked && (
+                                {!pendingRequest && !isBlocked && !hasAcceptedChat && (
                                   <button
                                     type="button"
                                     onClick={() => void sendRequest(user.displayName)}
@@ -626,6 +972,16 @@ export function AuthModule() {
                                     className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
                                   >
                                     {activeActionKey === `request:${user.displayName}` ? 'Sending…' : 'Send Request'}
+                                  </button>
+                                )}
+
+                                {hasAcceptedChat && !pendingRequest && !isBlocked && (
+                                  <button
+                                    type="button"
+                                    disabled
+                                    className="rounded-md border border-rose-400 bg-rose-300 px-3 py-1 text-xs font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-80"
+                                  >
+                                    Already chatting
                                   </button>
                                 )}
 
@@ -679,18 +1035,31 @@ export function AuthModule() {
                         const isActive = selectedChatRequestId === chat.id
                         return (
                           <li key={chat.id}>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setCenterView('chat')
-                                setSelectedChatRequestId(chat.id)
-                              }}
-                              className={`w-full rounded-md border px-3 py-2 text-left text-sm ${
+                            <div
+                              className={`flex items-center gap-2 rounded-md border px-2 py-2 ${
                                 isActive ? 'border-rose-700 bg-rose-700 text-rose-100' : 'border-rose-300 bg-rose-100 text-rose-700'
                               }`}
                             >
-                              {other.displayName}
-                            </button>
+                              <button
+                                type="button"
+                                onClick={() => openChat(chat.id)}
+                                className="min-w-0 flex-1 truncate text-left text-sm"
+                              >
+                                {other.displayName}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => closeRecentChat(chat.id)}
+                                className={`rounded-md p-1 ${isActive ? 'hover:bg-rose-800' : 'hover:bg-rose-200'}`}
+                                aria-label={`Close chat with ${other.displayName}`}
+                                title="Close chat"
+                              >
+                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                  <path d="M18 6L6 18" />
+                                  <path d="M6 6l12 12" />
+                                </svg>
+                              </button>
+                            </div>
                           </li>
                         )
                       })}
@@ -762,10 +1131,7 @@ export function AuthModule() {
                           <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => {
-                                setCenterView('chat')
-                                setSelectedChatRequestId(savedChat.chatRequestId)
-                              }}
+                              onClick={() => openChat(savedChat.chatRequestId)}
                               className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800"
                             >
                               Open
@@ -850,7 +1216,7 @@ export function AuthModule() {
                 </div>
               </aside>
 
-              <section className="rounded-md border border-rose-300 bg-rose-200 p-4">
+              <section className="min-w-0 h-full min-h-0 overflow-hidden rounded-md border border-rose-300 bg-rose-200 p-4">
                 {isDashboardLoading && <p className="text-sm text-rose-700">Loading your workspace…</p>}
 
                 {!isDashboardLoading && profile && centerView === 'profile' && (
@@ -912,9 +1278,9 @@ export function AuthModule() {
                 )}
 
                 {!isDashboardLoading && profile && centerView === 'chat' && (
-                  <div className="mx-auto flex w-full max-w-2xl flex-col items-center gap-4">
+                  <div className="mx-auto flex h-full min-h-0 w-full max-w-2xl flex-col items-center gap-4 overflow-hidden">
                     {!selectedChat && (
-                      <div className="flex min-h-[20rem] w-full items-center justify-center rounded-md border border-rose-300 bg-rose-100 p-6 text-center">
+                      <div className="flex min-h-80 w-full items-center justify-center rounded-md border border-rose-300 bg-rose-100 p-6 text-center">
                         <div>
                           <h2 className="mb-2 text-lg font-semibold">Start a conversation</h2>
                           <p className="text-sm text-rose-700">Select a recent chat from the left to open your chat canvases.</p>
@@ -923,29 +1289,62 @@ export function AuthModule() {
                     )}
 
                     {selectedChat && (
-                      <div className="w-full">
+                      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
+                        {(() => {
+                          const isDrawReady = joinedChatRequestId === selectedChat.id
+
+                          return (
                         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
                           <h2 className="text-base font-semibold">Chat with {getOtherUser(selectedChat).displayName}</h2>
-                          {!savedRequestIdSet.has(selectedChat.id) && (
+                          <div className="flex items-center gap-2">
+                            <span
+                              className={`rounded-md border px-2 py-1 text-[11px] font-medium ${
+                                isDrawReady
+                                  ? 'border-green-700 bg-green-700 text-green-100'
+                                  : 'border-rose-400 bg-rose-300 text-rose-700'
+                              }`}
+                            >
+                              {isDrawReady ? 'Ready' : 'Joining…'}
+                            </span>
                             <button
                               type="button"
-                              onClick={() => void saveAcceptedChat(selectedChat.id)}
-                              disabled={activeActionKey === `save-chat:${selectedChat.id}`}
-                              className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
+                              onClick={clearLocalCanvasAndNotify}
+                              disabled={joinedChatRequestId !== selectedChat.id}
+                              className="rounded-md border border-rose-700 bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
                             >
-                              {activeActionKey === `save-chat:${selectedChat.id}` ? 'Saving…' : 'Save chat'}
+                              Clear mine
                             </button>
-                          )}
-                        </div>
-
-                        <div className="flex flex-col gap-4">
-                          <div className="rounded-md border border-rose-300 bg-rose-100 p-3">
-                            <p className="mb-2 text-xs text-rose-700">Canvas 1</p>
-                            <canvas className="h-64 w-full rounded-md border border-rose-300 bg-rose-50" />
+                            {!savedRequestIdSet.has(selectedChat.id) && (
+                              <button
+                                type="button"
+                                onClick={() => void saveAcceptedChat(selectedChat.id)}
+                                disabled={activeActionKey === `save-chat:${selectedChat.id}`}
+                                className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
+                              >
+                                {activeActionKey === `save-chat:${selectedChat.id}` ? 'Saving…' : 'Save chat'}
+                              </button>
+                            )}
                           </div>
-                          <div className="rounded-md border border-rose-300 bg-rose-100 p-3">
+                        </div>
+                          )
+                        })()}
+
+                        <div className="grid min-h-0 flex-1 gap-4 overflow-hidden grid-rows-2">
+                          <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
+                            <p className="mb-2 text-xs text-rose-700">Canvas 1</p>
+                            <canvas
+                              ref={localCanvasRef}
+                              onPointerDown={handleLocalCanvasPointerDown}
+                              onPointerMove={handleLocalCanvasPointerMove}
+                              onPointerUp={stopLocalDrawing}
+                              onPointerLeave={stopLocalDrawing}
+                              onPointerCancel={stopLocalDrawing}
+                              className="h-full min-h-0 w-full touch-none rounded-md border border-rose-300 bg-rose-50"
+                            />
+                          </div>
+                          <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
                             <p className="mb-2 text-xs text-rose-700">Canvas 2</p>
-                            <canvas className="h-64 w-full rounded-md border border-rose-300 bg-rose-50" />
+                            <canvas ref={remoteCanvasRef} className="h-full min-h-0 w-full rounded-md border border-rose-300 bg-rose-50" />
                           </div>
                         </div>
                       </div>
