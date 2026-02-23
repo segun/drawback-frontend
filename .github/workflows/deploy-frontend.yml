@@ -50,6 +50,7 @@ jobs:
           host: ${{ github.ref_name == 'dev' && secrets.DO_SSH_HOST_DEV || secrets.DO_SSH_HOST_PROD }}
           username: ${{ secrets.DO_USERNAME }}
           key: ${{ secrets.DO_SSH_KEY }}
+          debug: true
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             export NVM_DIR="$HOME/.nvm"

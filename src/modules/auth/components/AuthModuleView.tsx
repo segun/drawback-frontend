@@ -705,7 +705,7 @@ export function AuthModuleView({
                         <div className="grid min-h-0 flex-1 gap-4 overflow-hidden grid-rows-2">
                           <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
                             <p className="mb-2 text-xs text-rose-700">{getOtherUser(selectedChat).displayName}'s canvas</p>
-                            <canvas ref={remoteCanvasRef} className="h-full min-h-0 w-full rounded-md border border-rose-300 bg-rose-50" />
+                            <canvas ref={remoteCanvasRef} className="h-full min-h-0 w-full rounded-md border border-rose-300 bg-rose-50 cursor-not-allowed" />
                           </div>
                           <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
                             <div className="mb-2 flex flex-wrap items-center gap-2">
