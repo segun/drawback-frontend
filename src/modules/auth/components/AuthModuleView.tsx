@@ -1,4 +1,4 @@
-import type { PointerEvent as ReactPointerEvent } from 'react'
+import { useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { NoticeBanner, type Notice } from '../../../common/components/NoticeBanner'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../constants'
 import type { BlockedUser, ChatRequest, SavedChat, UserMode, UserProfile } from '../api/socialApi'
@@ -159,8 +159,15 @@ export function AuthModuleView({
   presetColors,
   notice,
 }: AuthModuleViewProps) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+
+  const handleOpenChat = (chatRequestId: string) => {
+    openChat(chatRequestId)
+    setIsSidebarOpen(false)
+  }
+
   return (
-    <main className={`bg-rose-0 text-rose-800 ${accessToken ? 'flex h-screen flex-col overflow-hidden' : 'min-h-screen'}`}>
+    <main className={`bg-rose-0 text-rose-800 ${accessToken ? 'flex h-dvh flex-col overflow-hidden' : 'min-h-dvh'}`}>
       <header className={`${accessToken ? 'border-b border-rose-300 bg-rose-200/80' : 'mb-6 border-b border-rose-300 bg-rose-200/80'}`}>
         <nav className={`mx-auto flex w-full items-center justify-between ${accessToken ? 'max-w-screen-2xl px-1 py-2' : 'max-w-xl px-4 py-3'}`}>
           <img
@@ -168,9 +175,25 @@ export function AuthModuleView({
             alt="DrawkcaB logo"
             className={`${accessToken ? 'h-10 w-32' : 'h-12 w-36'} rounded-md border border-rose-300 object-cover`}
           />
-          <span className="rounded-md border border-rose-400 bg-rose-300 px-3 py-1 text-sm font-medium">
-            {accessToken ? 'Signed in' : 'Signed out'}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="rounded-md border border-rose-400 bg-rose-300 px-3 py-1 text-sm font-medium">
+              {accessToken ? 'Signed in' : 'Signed out'}
+            </span>
+            {accessToken && (
+              <button
+                type="button"
+                onClick={() => setIsSidebarOpen(true)}
+                aria-label="Open menu"
+                className="rounded-md border border-rose-400 bg-rose-300 p-2 text-rose-700 hover:bg-rose-400 lg:hidden"
+              >
+                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+            )}
+          </div>
         </nav>
       </header>
 
@@ -318,8 +341,32 @@ export function AuthModuleView({
           )}
 
           {accessToken && (
-            <div className="mt-2 grid h-[calc(100%-0.5rem)] w-full gap-4 overflow-hidden lg:grid-cols-[20rem_minmax(0,1fr)]">
-              <aside className="flex h-full min-h-0 flex-col rounded-md border border-rose-300 bg-rose-200">
+            <div className="relative mt-2 grid h-[calc(100%-0.5rem)] w-full gap-4 overflow-hidden lg:grid-cols-[20rem_minmax(0,1fr)]">
+              {isSidebarOpen && (
+                <div
+                  className="fixed inset-0 z-20 bg-rose-950/30 backdrop-blur-sm lg:hidden"
+                  onClick={() => setIsSidebarOpen(false)}
+                />
+              )}
+              <aside
+                className={`fixed inset-y-0 left-0 z-30 flex w-72 flex-col border-r border-rose-300 bg-rose-200 transition-transform duration-300 ease-in-out lg:static lg:inset-auto lg:z-auto lg:h-full lg:min-h-0 lg:w-auto lg:translate-x-0 lg:rounded-md lg:border ${
+                  isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                }`}
+              >
+                <div className="flex items-center justify-between border-b border-rose-300 p-3 lg:hidden">
+                  <span className="text-sm font-semibold text-rose-700">Menu</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsSidebarOpen(false)}
+                    aria-label="Close menu"
+                    className="rounded-md p-1 text-rose-700 hover:bg-rose-300"
+                  >
+                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path d="M18 6L6 18" />
+                      <path d="M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
                 <div className="border-b border-rose-300 p-3">
                   <input
                     type="text"
@@ -423,7 +470,7 @@ export function AuthModuleView({
                             >
                               <button
                                 type="button"
-                                onClick={() => openChat(chat.id)}
+                                onClick={() => handleOpenChat(chat.id)}
                                 className="min-w-0 flex-1 truncate text-left text-sm"
                               >
                                 {other.displayName}
@@ -512,7 +559,7 @@ export function AuthModuleView({
                           <div className="flex flex-wrap gap-2">
                             <button
                               type="button"
-                              onClick={() => openChat(savedChat.chatRequestId)}
+                              onClick={() => handleOpenChat(savedChat.chatRequestId)}
                               className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800"
                             >
                               Open
@@ -702,7 +749,7 @@ export function AuthModuleView({
                           </div>
                         </div>
 
-                        <div className="grid min-h-0 flex-1 gap-4 overflow-hidden grid-rows-2">
+                        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden grid-rows-2">
                           <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
                             <p className="mb-2 text-xs text-rose-700">{getOtherUser(selectedChat).displayName}'s canvas</p>
                             <canvas ref={remoteCanvasRef} className="h-full min-h-0 w-full rounded-md border border-rose-300 bg-rose-50 cursor-not-allowed" />
