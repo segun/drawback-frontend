@@ -68,6 +68,14 @@ type DrawbackSocket = Socket<ServerToClientEvents, ClientToServerEvents>
 let socket: DrawbackSocket | null = null
 let currentToken: string | null = null
 
+// iOS Safari suspends network when the tab is backgrounded or the screen locks.
+// Registered once at module level to avoid stacking listeners on each reconnect.
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && socket && !socket.connected) {
+    socket.connect()
+  }
+})
+
 const normalizeBaseUrl = (baseUrl: string): string => {
   const value = baseUrl.trim().replace(/\/$/, '')
   if (!value) {
@@ -116,14 +124,6 @@ export const getOrCreateDrawbackSocket = (baseUrl: string, token: string): Drawb
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 5000,
-  })
-
-  // iOS Safari suspends network when the tab is backgrounded or the screen locks.
-  // Re-connect when the user returns to the page.
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible' && socket && !socket.connected) {
-      socket.connect()
-    }
   })
 
   return socket
