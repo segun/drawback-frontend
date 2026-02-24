@@ -111,6 +111,19 @@ export const getOrCreateDrawbackSocket = (baseUrl: string, token: string): Drawb
   socket = io(buildNamespaceUrl(baseUrl), {
     auth: { token },
     autoConnect: true,
+    transports: ['websocket'],
+    reconnection: true,
+    reconnectionAttempts: Infinity,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+  })
+
+  // iOS Safari suspends network when the tab is backgrounded or the screen locks.
+  // Re-connect when the user returns to the page.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && socket && !socket.connected) {
+      socket.connect()
+    }
   })
 
   return socket
