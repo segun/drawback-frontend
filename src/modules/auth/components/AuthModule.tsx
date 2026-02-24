@@ -864,6 +864,7 @@ export function AuthModule() {
 
   const pendingOutgoingByUserId = new Map(pendingOutgoingRequests.map((request) => [request.toUserId, request]))
   const pendingOutgoingUserIds = new Set(pendingOutgoingRequests.map((request) => request.toUserId))
+  const connectedUserIds = new Set(recentChats.map((chat) => getOtherUser(chat).id))
 
   const savedRequestIdSet = new Set(savedChats.map((chat) => chat.chatRequestId))
 
@@ -933,6 +934,7 @@ export function AuthModule() {
       isSearching={isSearching}
       sendRequest={sendRequest}
       pendingOutgoingUserIds={pendingOutgoingUserIds}
+      connectedUserIds={connectedUserIds}
       profile={profile}
       activeActionKey={activeActionKey}
       cancelRequest={cancelRequest}

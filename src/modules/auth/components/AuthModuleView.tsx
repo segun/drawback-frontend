@@ -33,6 +33,7 @@ type AuthModuleViewProps = {
   isSearching: boolean
   sendRequest: (displayName: string) => Promise<void>
   pendingOutgoingUserIds: Set<string>
+  connectedUserIds: Set<string>
   profile: UserProfile | null
   activeActionKey: string | null
   cancelRequest: (chatRequestId: string) => Promise<void>
@@ -117,6 +118,7 @@ export function AuthModuleView({
   isSearching,
   sendRequest,
   pendingOutgoingUserIds,
+  connectedUserIds,
   profile,
   activeActionKey,
   cancelRequest,
@@ -388,22 +390,29 @@ export function AuthModuleView({
                       {!isSearching && (
                         <ul className="flex flex-col gap-2">
                           {searchResults.map((user) => {
+                            const isConnected = connectedUserIds.has(user.id)
                             const isPending = pendingOutgoingUserIds.has(user.id)
                             const actionKey = `request:${user.displayName}`
                             const isSending = activeActionKey === actionKey
                             return (
                               <li key={user.id} className="flex items-center gap-2 rounded-md border border-rose-300 bg-rose-100 px-2 py-2">
                                 <span className="min-w-0 flex-1 truncate text-sm text-rose-700">{user.displayName}</span>
-                                <button
-                                  type="button"
-                                  onClick={() => void sendRequest(user.displayName)}
-                                  disabled={isPending || isSending}
-                                  title={isPending ? 'Request already sent' : 'Send chat request'}
-                                  aria-label={`Send chat request to ${user.displayName}`}
-                                  className="shrink-0 rounded-md border border-rose-700 bg-rose-700 px-2 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                  {isSending ? 'Sending…' : isPending ? 'Sent' : 'Request'}
-                                </button>
+                                {isConnected ? (
+                                  <span className="shrink-0 rounded-md border border-rose-400 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-500">
+                                    Already connected
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => void sendRequest(user.displayName)}
+                                    disabled={isPending || isSending}
+                                    title={isPending ? 'Request already sent' : 'Send chat request'}
+                                    aria-label={`Send chat request to ${user.displayName}`}
+                                    className="shrink-0 rounded-md border border-rose-700 bg-rose-700 px-2 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                  >
+                                    {isSending ? 'Sending…' : isPending ? 'Sent' : 'Request'}
+                                  </button>
+                                )}
                               </li>
                             )
                           })}
