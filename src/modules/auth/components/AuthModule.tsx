@@ -88,11 +88,13 @@ export function AuthModule() {
   const [showReconnectButton, setShowReconnectButton] = useState(false)
   const [isReconnecting, setIsReconnecting] = useState(false)
   const [closedRecentChatRequestIds, setClosedRecentChatRequestIds] = useState<Set<string>>(new Set())
+  const [waitingPeerRequestIds, setWaitingPeerRequestIds] = useState<Set<string>>(new Set())
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [profileDisplayName, setProfileDisplayName] = useState('@')
   const [profileMode, setProfileMode] = useState<UserMode>('PRIVATE')
-  const [publicUsers, setPublicUsers] = useState<UserProfile[]>([])
+  const [searchResults, setSearchResults] = useState<UserProfile[]>([])
+  const [isSearching, setIsSearching] = useState(false)
   const [chatRequests, setChatRequests] = useState<ChatRequest[]>([])
   const [savedChats, setSavedChats] = useState<SavedChat[]>([])
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([])
@@ -249,7 +251,8 @@ export function AuthModule() {
     setProfile(null)
     setProfileDisplayName('@')
     setProfileMode('PRIVATE')
-    setPublicUsers([])
+    setSearchResults([])
+    setIsSearching(false)
     setChatRequests([])
     setSavedChats([])
     setBlockedUsers([])
@@ -272,9 +275,8 @@ export function AuthModule() {
     }
 
     try {
-      const [me, users, sentRequests, receivedRequests, chats, blocks] = await Promise.all([
+      const [me, sentRequests, receivedRequests, chats, blocks] = await Promise.all([
         socialApi.getMyProfile(),
-        socialApi.listPublicUsers(),
         socialApi.listSentChatRequests(),
         socialApi.listReceivedChatRequests(),
         socialApi.listSavedChats(),
@@ -284,7 +286,6 @@ export function AuthModule() {
       setProfile(me)
       setProfileDisplayName(me.displayName)
       setProfileMode(me.mode)
-      setPublicUsers(users)
       setChatRequests([...receivedRequests, ...sentRequests].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)))
       setSavedChats(chats)
       setBlockedUsers(blocks)
@@ -300,6 +301,25 @@ export function AuthModule() {
   useEffect(() => {
     loadDashboardDataRef.current = loadDashboardData
   }, [loadDashboardData])
+
+  useEffect(() => {
+    const trimmed = searchQuery.trim()
+    if (!trimmed || !accessToken) {
+      setSearchResults([])
+      setIsSearching(false)
+      return
+    }
+
+    setIsSearching(true)
+    const timer = setTimeout(() => {
+      socialApi.searchPublicUsers(trimmed)
+        .then((results) => { setSearchResults(results) })
+        .catch(() => { setSearchResults([]) })
+        .finally(() => { setIsSearching(false) })
+    }, 300)
+
+    return () => { clearTimeout(timer) }
+  }, [searchQuery, accessToken])
 
   useEffect(() => {
     if (!isConfirmRoute) {
@@ -478,6 +498,14 @@ export function AuthModule() {
         return previous
       }
 
+      const next = new Set(previous)
+      next.delete(chatRequestId)
+      return next
+    })
+    setWaitingPeerRequestIds((previous) => {
+      if (!previous.has(chatRequestId)) {
+        return previous
+      }
       const next = new Set(previous)
       next.delete(chatRequestId)
       return next
@@ -753,6 +781,15 @@ export function AuthModule() {
       setPeerPresent(false)
     }
 
+    const onDrawPeerWaiting = (payload: { requestId: string }) => {
+      setWaitingPeerRequestIds((previous) => {
+        if (previous.has(payload.requestId)) {
+          return previous
+        }
+        return new Set(previous).add(payload.requestId)
+      })
+    }
+
     const onSocketError = (payload: { message: string; status?: number }) => {
       const statusPrefix = payload.status ? `[WS ${payload.status}] ` : ''
       showNotice(`${statusPrefix}${payload.message}`, 'error')
@@ -776,6 +813,7 @@ export function AuthModule() {
     socket.on('chat.joined', onChatJoined)
     socket.on('draw.peer.joined', onDrawPeerJoined)
     socket.on('draw.peer.left', onDrawPeerLeft)
+    socket.on('draw.peer.waiting', onDrawPeerWaiting)
     socket.on('draw.stroke', onDrawStroke)
     socket.on('draw.clear', onDrawClear)
     socket.on('error', onSocketError)
@@ -787,6 +825,7 @@ export function AuthModule() {
       socket.off('chat.joined', onChatJoined)
       socket.off('draw.peer.joined', onDrawPeerJoined)
       socket.off('draw.peer.left', onDrawPeerLeft)
+      socket.off('draw.peer.waiting', onDrawPeerWaiting)
       socket.off('draw.stroke', onDrawStroke)
       socket.off('draw.clear', onDrawClear)
       socket.off('error', onSocketError)
@@ -824,13 +863,13 @@ export function AuthModule() {
   }
 
   const pendingOutgoingByUserId = new Map(pendingOutgoingRequests.map((request) => [request.toUserId, request]))
+  const pendingOutgoingUserIds = new Set(pendingOutgoingRequests.map((request) => request.toUserId))
 
   const savedRequestIdSet = new Set(savedChats.map((chat) => chat.chatRequestId))
 
   const searchTerm = searchQuery.trim().toLowerCase()
   const includesSearch = (value: string): boolean => !searchTerm || value.toLowerCase().includes(searchTerm)
 
-  const filteredPublicUsers = publicUsers.filter((user) => includesSearch(`${user.displayName} ${user.email}`))
   const filteredRecentChats = recentChats.filter((chat) => !closedRecentChatRequestIds.has(chat.id) && includesSearch(getOtherUser(chat).displayName))
   const filteredChatRequests = chatRequests.filter((request) => {
     const other = getOtherUser(request)
@@ -890,6 +929,10 @@ export function AuthModule() {
       isSubmitting={isSubmitting}
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
+      searchResults={searchResults}
+      isSearching={isSearching}
+      sendRequest={sendRequest}
+      pendingOutgoingUserIds={pendingOutgoingUserIds}
       profile={profile}
       activeActionKey={activeActionKey}
       cancelRequest={cancelRequest}
@@ -898,6 +941,7 @@ export function AuthModule() {
       filteredRecentChats={filteredRecentChats}
       getOtherUser={getOtherUser}
       selectedChatRequestId={selectedChatRequestId}
+      waitingPeerRequestIds={waitingPeerRequestIds}
       openChat={openChat}
       closeRecentChat={closeRecentChat}
       filteredChatRequests={filteredChatRequests}

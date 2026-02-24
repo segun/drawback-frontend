@@ -29,6 +29,10 @@ type AuthModuleViewProps = {
 
   searchQuery: string
   setSearchQuery: (value: string) => void
+  searchResults: UserProfile[]
+  isSearching: boolean
+  sendRequest: (displayName: string) => Promise<void>
+  pendingOutgoingUserIds: Set<string>
   profile: UserProfile | null
   activeActionKey: string | null
   cancelRequest: (chatRequestId: string) => Promise<void>
@@ -38,6 +42,7 @@ type AuthModuleViewProps = {
   filteredRecentChats: ChatRequest[]
   getOtherUser: (request: ChatRequest) => { id: string; displayName: string }
   selectedChatRequestId: string | null
+  waitingPeerRequestIds: Set<string>
   openChat: (chatRequestId: string) => void
   closeRecentChat: (chatRequestId: string) => void
 
@@ -108,6 +113,10 @@ export function AuthModuleView({
   isSubmitting,
   searchQuery,
   setSearchQuery,
+  searchResults,
+  isSearching,
+  sendRequest,
+  pendingOutgoingUserIds,
   profile,
   activeActionKey,
   cancelRequest,
@@ -116,6 +125,7 @@ export function AuthModuleView({
   filteredRecentChats,
   getOtherUser,
   selectedChatRequestId,
+  waitingPeerRequestIds,
   openChat,
   closeRecentChat,
   filteredChatRequests,
@@ -365,18 +375,51 @@ export function AuthModuleView({
                     type="text"
                     value={searchQuery}
                     onChange={(event) => setSearchQuery(event.target.value)}
-                    placeholder="Search chats, users, requests, saved, blocked"
+                    placeholder="Search users by display name"
                     className="w-full rounded-md border border-rose-300 bg-rose-100 px-3 py-2 text-sm outline-none placeholder:text-rose-500 focus:border-rose-600"
                   />
                 </div>
 
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
+                  {searchQuery.trim() && (
+                    <section>
+                      <h2 className="mb-2 text-sm font-semibold text-rose-700">Users</h2>
+                      {isSearching && <p className="text-xs text-rose-500">Searching…</p>}
+                      {!isSearching && (
+                        <ul className="flex flex-col gap-2">
+                          {searchResults.map((user) => {
+                            const isPending = pendingOutgoingUserIds.has(user.id)
+                            const actionKey = `request:${user.displayName}`
+                            const isSending = activeActionKey === actionKey
+                            return (
+                              <li key={user.id} className="flex items-center gap-2 rounded-md border border-rose-300 bg-rose-100 px-2 py-2">
+                                <span className="min-w-0 flex-1 truncate text-sm text-rose-700">{user.displayName}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => void sendRequest(user.displayName)}
+                                  disabled={isPending || isSending}
+                                  title={isPending ? 'Request already sent' : 'Send chat request'}
+                                  aria-label={`Send chat request to ${user.displayName}`}
+                                  className="shrink-0 rounded-md border border-rose-700 bg-rose-700 px-2 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {isSending ? 'Sending…' : isPending ? 'Sent' : 'Request'}
+                                </button>
+                              </li>
+                            )
+                          })}
+                          {searchResults.length === 0 && <li className="text-xs text-rose-700">No users found.</li>}
+                        </ul>
+                      )}
+                    </section>
+                  )}
+
                   <section>
                     <h2 className="mb-2 text-sm font-semibold text-rose-700">Recent Chats</h2>
                     <ul className="flex flex-col gap-2">
                       {filteredRecentChats.map((chat) => {
                         const other = getOtherUser(chat)
                         const isActive = selectedChatRequestId === chat.id
+                        const isPeerWaiting = waitingPeerRequestIds.has(chat.id)
                         return (
                           <li key={chat.id}>
                             <div
@@ -387,9 +430,16 @@ export function AuthModuleView({
                               <button
                                 type="button"
                                 onClick={() => handleOpenChat(chat.id)}
-                                className="min-w-0 flex-1 truncate text-left text-sm"
+                                className="flex min-w-0 flex-1 items-center gap-1.5 truncate text-left text-sm"
                               >
-                                {other.displayName}
+                                {isPeerWaiting && (
+                                  <span
+                                    className="inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-400"
+                                    aria-label="Peer is waiting"
+                                    title={`${other.displayName} is waiting for you`}
+                                  />
+                                )}
+                                <span className="truncate">{other.displayName}</span>
                               </button>
                               <button
                                 type="button"

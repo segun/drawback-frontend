@@ -45,12 +45,19 @@ type DrawPeerLeftPayload = {
   userId: string
 }
 
+type DrawPeerWaitingPayload = {
+  roomId: string
+  requestId: string
+  userId: string
+}
+
 type ServerToClientEvents = {
   'chat.requested': (payload: ChatRequestedPayload) => void
   'chat.response': (payload: ChatResponsePayload) => void
   'chat.joined': (payload: ChatJoinedPayload) => void
   'draw.peer.joined': (payload: DrawPeerJoinedPayload) => void
   'draw.peer.left': (payload: DrawPeerLeftPayload) => void
+  'draw.peer.waiting': (payload: DrawPeerWaitingPayload) => void
   'draw.stroke': (payload: DrawStrokePayload) => void
   'draw.clear': (payload: DrawClearPayload) => void
   error: (payload: SocketErrorPayload) => void
