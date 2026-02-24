@@ -7,6 +7,7 @@ export type UserProfile = {
   email: string
   displayName: string
   mode: UserMode
+  appearInSearches: boolean
   createdAt: string
   updatedAt: string
 }
@@ -116,6 +117,12 @@ export const createSocialApi = (authApi: AuthApi) => {
       method: 'DELETE',
     })
 
+  const updateAppearInSearches = (appearInSearches: boolean) =>
+    authApi.request<UserProfile>('/users/me/appear-in-searches', {
+      method: 'PATCH',
+      body: JSON.stringify({ appearInSearches }),
+    })
+
   return {
     getMyProfile,
     updateMyProfile,
@@ -134,6 +141,7 @@ export const createSocialApi = (authApi: AuthApi) => {
     listBlockedUsers,
     blockUser,
     unblockUser,
+    updateAppearInSearches,
   }
 }
 

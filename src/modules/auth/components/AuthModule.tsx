@@ -94,6 +94,7 @@ export function AuthModule() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [profileDisplayName, setProfileDisplayName] = useState('@')
   const [profileMode, setProfileMode] = useState<UserMode>('PRIVATE')
+  const [appearInSearches, setAppearInSearches] = useState(false)
   const [searchResults, setSearchResults] = useState<UserProfile[]>([])
   const [isSearching, setIsSearching] = useState(false)
   const [chatRequests, setChatRequests] = useState<ChatRequest[]>([])
@@ -280,6 +281,7 @@ export function AuthModule() {
     setProfile(null)
     setProfileDisplayName('@')
     setProfileMode('PRIVATE')
+    setAppearInSearches(false)
     setSearchResults([])
     setIsSearching(false)
     setChatRequests([])
@@ -315,6 +317,7 @@ export function AuthModule() {
       setProfile(me)
       setProfileDisplayName(me.displayName)
       setProfileMode(me.mode)
+      setAppearInSearches(me.appearInSearches ?? false)
       setChatRequests([...receivedRequests, ...sentRequests].sort((a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)))
       setSavedChats(chats)
       setBlockedUsers(blocks)
@@ -466,6 +469,15 @@ export function AuthModule() {
     }
   }, [])
 
+  const handleProfileModeChange = (mode: UserMode): void => {
+    setProfileMode(mode)
+    if (mode === 'PUBLIC') {
+      setAppearInSearches(true)
+    } else {
+      setAppearInSearches(false)
+    }
+  }
+
   const updateProfile = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()
 
@@ -477,8 +489,14 @@ export function AuthModule() {
 
     const displayNameChanged = profile?.displayName !== displayName
     const modeChanged = profile?.mode !== profileMode
+    const wasPublic = profile?.mode === 'PUBLIC'
+    const originalAppearInSearches = profile?.appearInSearches ?? false
+    const appearInSearchesChanged = originalAppearInSearches !== appearInSearches
+    // Call appear-in-searches API when the mode changed (forces a sync) or
+    // when the user is private and manually toggled the checkbox.
+    const shouldUpdateAppearInSearches = modeChanged || (!wasPublic && !modeChanged && appearInSearchesChanged)
 
-    if (!displayNameChanged && !modeChanged) {
+    if (!displayNameChanged && !modeChanged && !shouldUpdateAppearInSearches) {
       showNotice('No changes to save.', 'info')
       return
     }
@@ -495,10 +513,15 @@ export function AuthModule() {
         latest = await socialApi.updateMyMode(profileMode)
       }
 
+      if (shouldUpdateAppearInSearches) {
+        latest = await socialApi.updateAppearInSearches(appearInSearches)
+      }
+
       if (latest) {
         setProfile(latest)
         setProfileDisplayName(latest.displayName)
         setProfileMode(latest.mode)
+        setAppearInSearches(latest.appearInSearches ?? false)
       }
       showNotice('Profile updated successfully.', 'success')
       await loadDashboardData(false)
@@ -1021,7 +1044,9 @@ export function AuthModule() {
       setProfileDisplayName={setProfileDisplayName}
       normalizeProfileDisplayNameInput={normalizeProfileDisplayNameInput}
       profileMode={profileMode}
-      setProfileMode={setProfileMode}
+      setProfileMode={handleProfileModeChange}
+      appearInSearches={appearInSearches}
+      setAppearInSearches={setAppearInSearches}
       isUpdatingProfile={isUpdatingProfile}
       deleteMyAccount={deleteMyAccount}
       isDeletingAccount={isDeletingAccount}

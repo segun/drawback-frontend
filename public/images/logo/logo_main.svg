@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="480" height="160" viewBox="0 0 480 160">
+  <style>
+    .draw-text {
+      font-family: "Segoe UI", sans-serif;
+      font-size: 72px;
+      font-weight: 700;
+      fill: #222;
+    }
+    .back-container {
+      fill: #0A66C2;
+    }
+    .back-text {
+      font-family: "Segoe UI", sans-serif;
+      font-size: 72px;
+      font-weight: 700;
+      fill: #fff;
+    }
+    .arrow {
+      fill: #0A66C2;
+    }
+  </style>
+
+  <!-- "Draw" -->
+  <text x="0" y="95" class="draw-text">Draw</text>
+
+  <!-- Blue reversed "kcaB" block -->
+  <path class="back-container" d="M240 40 h210 a20 20 0 0 1 20 20 v40 a20 20 0 0 1 -20 20 h-210 a20 20 0 0 1 -20 -20 v-40 a20 20 0 0 1 20 -20z"/>
+  
+  <!-- Arrow (right → left) -->
+  <path class="arrow" d="M430 30 L380 30 L395 18 L380 30 L395 42" />
+
+  <!-- "kcaB" reversed text -->
+  <g transform="translate(255, 95)">
+    <text class="back-text">kcaB</text>
+  </g>
+</svg>

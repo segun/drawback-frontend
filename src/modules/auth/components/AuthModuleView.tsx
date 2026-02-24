@@ -68,6 +68,8 @@ type AuthModuleViewProps = {
   normalizeProfileDisplayNameInput: (value: string) => string
   profileMode: UserMode
   setProfileMode: (mode: UserMode) => void
+  appearInSearches: boolean
+  setAppearInSearches: (value: boolean) => void
   isUpdatingProfile: boolean
   deleteMyAccount: () => Promise<void>
   isDeletingAccount: boolean
@@ -149,6 +151,8 @@ export function AuthModuleView({
   normalizeProfileDisplayNameInput,
   profileMode,
   setProfileMode,
+  appearInSearches,
+  setAppearInSearches,
   isUpdatingProfile,
   deleteMyAccount,
   isDeletingAccount,
@@ -205,7 +209,7 @@ export function AuthModuleView({
       <header className={`${accessToken ? 'border-b border-rose-300 bg-rose-200/80' : 'mb-6 border-b border-rose-300 bg-rose-200/80'}`}>
         <nav className={`mx-auto flex w-full items-center justify-between ${accessToken ? 'max-w-screen-2xl px-1 py-2' : 'max-w-xl px-4 py-3'}`}>
           <img
-            src="/images/logo/logo_main.jpg"
+            src="/images/logo/logo_main.png"
             alt="DrawkcaB logo"
             className={`${accessToken ? 'h-10 w-32' : 'h-12 w-36'} rounded-md border border-rose-300 object-cover`}
           />
@@ -806,6 +810,22 @@ export function AuthModuleView({
                         <option value="PRIVATE">Private (default)</option>
                         <option value="PUBLIC">Public</option>
                       </select>
+                    </label>
+
+                    <label className={`flex flex-row items-center gap-2 text-sm ${profileMode === 'PUBLIC' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
+                      <input
+                        type="checkbox"
+                        checked={appearInSearches}
+                        disabled={profileMode === 'PUBLIC'}
+                        onChange={(event) => setAppearInSearches(event.target.checked)}
+                        className="h-4 w-4 accent-rose-700 disabled:cursor-not-allowed"
+                      />
+                      <span>
+                        Appear in searches
+                        {profileMode === 'PUBLIC' && (
+                          <span className="ml-1 text-xs text-rose-500">(A public profile always appears in searches)</span>
+                        )}
+                      </span>
                     </label>
 
                     <div className="flex flex-wrap gap-2">
