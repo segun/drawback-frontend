@@ -30,9 +30,6 @@ const ERASER_WIDTH = 40
 const PRESET_COLORS = [
   '#000000',
   '#be123c',
-  '#2563eb',
-  '#16a34a',
-  '#ffffff',
 ]
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
@@ -88,6 +85,8 @@ export function AuthModule() {
   const [selectedChatRequestId, setSelectedChatRequestId] = useState<string | null>(null)
   const [joinedChatRequestId, setJoinedChatRequestId] = useState<string | null>(null)
   const [peerPresent, setPeerPresent] = useState<boolean>(false)
+  const [showReconnectButton, setShowReconnectButton] = useState(false)
+  const [isReconnecting, setIsReconnecting] = useState(false)
   const [closedRecentChatRequestIds, setClosedRecentChatRequestIds] = useState<Set<string>>(new Set())
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -395,6 +394,16 @@ export function AuthModule() {
     showNotice('You have been logged out.', 'info')
   }
 
+  useEffect(() => {
+    const handleUnauthorized = (): void => {
+      logout()
+    }
+    window.addEventListener('drawback:unauthorized', handleUnauthorized)
+    return () => {
+      window.removeEventListener('drawback:unauthorized', handleUnauthorized)
+    }
+  }, [])
+
   const updateProfile = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()
 
@@ -553,6 +562,17 @@ export function AuthModule() {
     emitDrawClear(selectedChatRequestId)
   }
 
+  const reconnectToRoom = (): void => {
+    if (!selectedChatRequestId) {
+      return
+    }
+
+    setIsReconnecting(true)
+    setShowReconnectButton(false)
+    emitChatJoin(selectedChatRequestId)
+    setTimeout(() => setIsReconnecting(false), 3000)
+  }
+
   const cancelRequest = async (chatRequestId: string): Promise<void> => {
     await withAction(`cancel-request:${chatRequestId}`, async () => {
       try {
@@ -656,6 +676,19 @@ export function AuthModule() {
 
     emitChatJoin(selectedChatRequestId)
   }, [selectedChatRequestId, accessToken])
+
+  useEffect(() => {
+    if (peerPresent || !joinedChatRequestId) {
+      setShowReconnectButton(false)
+      return
+    }
+
+    const timer = setTimeout(() => {
+      setShowReconnectButton(true)
+    }, 5000)
+
+    return () => clearTimeout(timer)
+  }, [joinedChatRequestId, peerPresent])
 
   useEffect(() => {
     if (!accessToken) {
@@ -773,7 +806,15 @@ export function AuthModule() {
   const outgoingRequests = chatRequests.filter((request) => request.fromUserId === currentUserId)
   const pendingIncomingRequests = incomingRequests.filter((request) => request.status === 'PENDING')
   const pendingOutgoingRequests = outgoingRequests.filter((request) => request.status === 'PENDING')
-  const recentChats = chatRequests.filter((request) => request.status === 'ACCEPTED')
+
+  const blockedUserIdSet = new Set(blockedUsers.map((entry) => entry.id))
+
+  const recentChats = chatRequests.filter(
+    (request) =>
+      request.status === 'ACCEPTED' &&
+      !blockedUserIdSet.has(request.fromUserId) &&
+      !blockedUserIdSet.has(request.toUserId),
+  )
 
   const getOtherUser = (request: ChatRequest): { id: string; displayName: string } => {
     if (request.fromUserId === currentUserId) {
@@ -781,8 +822,6 @@ export function AuthModule() {
     }
     return { id: request.fromUser.id, displayName: request.fromUser.displayName }
   }
-
-  const blockedUserIdSet = new Set(blockedUsers.map((entry) => entry.id))
 
   const pendingOutgoingByUserId = new Map(pendingOutgoingRequests.map((request) => [request.toUserId, request]))
 
@@ -795,13 +834,18 @@ export function AuthModule() {
   const filteredRecentChats = recentChats.filter((chat) => !closedRecentChatRequestIds.has(chat.id) && includesSearch(getOtherUser(chat).displayName))
   const filteredChatRequests = chatRequests.filter((request) => {
     const other = getOtherUser(request)
-    return includesSearch(`${other.displayName} ${request.status}`)
+    return request.status !== 'ACCEPTED' && includesSearch(`${other.displayName} ${request.status}`)
   })
-  const filteredSavedChats = savedChats.filter((savedChat) => includesSearch(getOtherUser(savedChat.chatRequest).displayName))
+  const filteredSavedChats = savedChats.filter(
+    (savedChat) =>
+      !blockedUserIdSet.has(savedChat.chatRequest.fromUserId) &&
+      !blockedUserIdSet.has(savedChat.chatRequest.toUserId) &&
+      includesSearch(getOtherUser(savedChat.chatRequest).displayName),
+  )
   const filteredBlockedUsers = blockedUsers.filter((user) => includesSearch(`${user.displayName} ${user.email}`))
 
   const selectedChat = selectedChatRequestId ? recentChats.find((chat) => chat.id === selectedChatRequestId) ?? null : null
-  const acceptedChatByUserId = new Set(recentChats.map((chat) => getOtherUser(chat).id))
+  const acceptedChatByUserId = new Map(recentChats.map((chat) => [getOtherUser(chat).id, chat.id]))
 
   useEffect(() => {
     if (!selectedChatRequestId) {
@@ -846,13 +890,8 @@ export function AuthModule() {
       isSubmitting={isSubmitting}
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
-      filteredPublicUsers={filteredPublicUsers}
       profile={profile}
-      blockedUserIdSet={blockedUserIdSet}
-      pendingOutgoingByUserId={pendingOutgoingByUserId}
-      acceptedChatByUserId={acceptedChatByUserId}
       activeActionKey={activeActionKey}
-      sendRequest={sendRequest}
       cancelRequest={cancelRequest}
       blockUser={blockUser}
       unblockUser={unblockUser}
@@ -883,6 +922,9 @@ export function AuthModule() {
       selectedChat={selectedChat}
       joinedChatRequestId={joinedChatRequestId}
       peerPresent={peerPresent}
+      showReconnectButton={showReconnectButton}
+      isReconnecting={isReconnecting}
+      reconnectToRoom={reconnectToRoom}
       clearLocalCanvasAndNotify={clearLocalCanvasAndNotify}
       savedRequestIdSet={savedRequestIdSet}
       saveAcceptedChat={saveAcceptedChat}

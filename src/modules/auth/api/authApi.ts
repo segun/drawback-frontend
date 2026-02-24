@@ -66,6 +66,9 @@ export const createAuthApi = (baseUrl: string) => {
       } catch {
         // no-op
       }
+      if (response.status === 401 && authRequired) {
+        window.dispatchEvent(new Event('drawback:unauthorized'))
+      }
       throw new ApiError(response.status, message)
     }
 

@@ -1,5 +1,5 @@
 import { useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { Eraser, LogOut, Menu, User, X } from 'lucide-react'
+import { Ban, Bookmark, Eraser, LogOut, Menu, RefreshCw, Save, SaveAll, ShieldOff, Trash2, User, X } from 'lucide-react'
 import { NoticeBanner, type Notice } from '../../../common/components/NoticeBanner'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../constants'
 import type { BlockedUser, ChatRequest, SavedChat, UserMode, UserProfile } from '../api/socialApi'
@@ -29,13 +29,8 @@ type AuthModuleViewProps = {
 
   searchQuery: string
   setSearchQuery: (value: string) => void
-  filteredPublicUsers: UserProfile[]
   profile: UserProfile | null
-  blockedUserIdSet: Set<string>
-  pendingOutgoingByUserId: Map<string, ChatRequest>
-  acceptedChatByUserId: Set<string>
   activeActionKey: string | null
-  sendRequest: (toDisplayName: string) => Promise<void>
   cancelRequest: (chatRequestId: string) => Promise<void>
   blockUser: (blockedUserId: string) => Promise<void>
   unblockUser: (blockedUserId: string) => Promise<void>
@@ -73,6 +68,9 @@ type AuthModuleViewProps = {
   selectedChat: ChatRequest | null
   joinedChatRequestId: string | null
   peerPresent: boolean
+  showReconnectButton: boolean
+  isReconnecting: boolean
+  reconnectToRoom: () => void
   clearLocalCanvasAndNotify: () => void
   savedRequestIdSet: Set<string>
   saveAcceptedChat: (chatRequestId: string) => Promise<void>
@@ -110,13 +108,8 @@ export function AuthModuleView({
   isSubmitting,
   searchQuery,
   setSearchQuery,
-  filteredPublicUsers,
   profile,
-  blockedUserIdSet,
-  pendingOutgoingByUserId,
-  acceptedChatByUserId,
   activeActionKey,
-  sendRequest,
   cancelRequest,
   blockUser,
   unblockUser,
@@ -147,6 +140,9 @@ export function AuthModuleView({
   selectedChat,
   joinedChatRequestId,
   peerPresent,
+  showReconnectButton,
+  isReconnecting,
+  reconnectToRoom,
   clearLocalCanvasAndNotify,
   savedRequestIdSet,
   saveAcceptedChat,
@@ -161,6 +157,9 @@ export function AuthModuleView({
   notice,
 }: AuthModuleViewProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [confirmDeleteChat, setConfirmDeleteChat] = useState<{ id: string; displayName: string } | null>(null)
+  const [confirmBlockUser, setConfirmBlockUser] = useState<{ id: string; displayName: string } | null>(null)
+  const [confirmUnblockUser, setConfirmUnblockUser] = useState<{ id: string; displayName: string } | null>(null)
 
   const handleOpenChat = (chatRequestId: string) => {
     openChat(chatRequestId)
@@ -168,7 +167,7 @@ export function AuthModuleView({
   }
 
   return (
-    <main className={`bg-rose-0 text-rose-800 ${accessToken ? 'flex h-dvh flex-col overflow-hidden' : 'min-h-dvh'}`}>
+    <main className={`bg-rose-0 text-rose-800 ${accessToken ? 'flex h-dvh flex-col overflow-hidden landscape:max-lg:h-auto landscape:max-lg:overflow-y-auto' : 'min-h-dvh'}`}>
       <header className={`${accessToken ? 'border-b border-rose-300 bg-rose-200/80' : 'mb-6 border-b border-rose-300 bg-rose-200/80'}`}>
         <nav className={`mx-auto flex w-full items-center justify-between ${accessToken ? 'max-w-screen-2xl px-1 py-2' : 'max-w-xl px-4 py-3'}`}>
           <img
@@ -194,11 +193,11 @@ export function AuthModuleView({
         </nav>
       </header>
 
-      <div className={`mx-auto px-4 ${accessToken ? 'flex-1 min-h-0 max-w-screen-2xl w-full overflow-hidden pb-3 pt-2' : 'max-w-xl pb-8'}`}>
+      <div className={`mx-auto px-4 ${accessToken ? 'flex-1 min-h-0 max-w-screen-2xl w-full overflow-hidden pb-3 pt-2 landscape:max-lg:flex-none landscape:max-lg:overflow-visible' : 'max-w-xl pb-8'}`}>
         <section
           className={
             accessToken
-              ? 'w-full h-full min-h-0'
+              ? 'w-full h-full min-h-0 landscape:max-lg:h-auto'
               : 'rounded-xl border border-rose-300 bg-rose-100 p-4 shadow-sm shadow-rose-300/30'
           }
         >
@@ -338,7 +337,7 @@ export function AuthModuleView({
           )}
 
           {accessToken && (
-            <div className="relative mt-2 grid h-[calc(100%-0.5rem)] w-full gap-4 overflow-hidden lg:grid-cols-[20rem_minmax(0,1fr)]">
+            <div className="relative mt-2 grid h-[calc(100%-0.5rem)] w-full gap-4 overflow-hidden lg:grid-cols-[20rem_minmax(0,1fr)] landscape:max-lg:h-auto landscape:max-lg:overflow-visible">
               {isSidebarOpen && (
                 <div
                   className="fixed inset-0 z-20 bg-rose-950/30 backdrop-blur-sm lg:hidden"
@@ -373,83 +372,6 @@ export function AuthModuleView({
 
                 <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-3">
                   <section>
-                    <h2 className="mb-2 text-sm font-semibold text-rose-700">Public Users</h2>
-                    <ul className="flex flex-col gap-2">
-                      {filteredPublicUsers.map((user) => {
-                        const isSelf = user.id === profile?.id
-                        const isBlocked = blockedUserIdSet.has(user.id)
-                        const pendingRequest = pendingOutgoingByUserId.get(user.id)
-                        const hasAcceptedChat = acceptedChatByUserId.has(user.id)
-
-                        return (
-                          <li key={user.id} className="rounded-md border border-rose-300 bg-rose-100 p-2">
-                            <div className="mb-2 text-sm text-rose-700">{user.displayName}</div>
-                            {!isSelf && (
-                              <div className="flex flex-wrap gap-2">
-                                {!pendingRequest && !isBlocked && !hasAcceptedChat && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void sendRequest(user.displayName)}
-                                    disabled={activeActionKey === `request:${user.displayName}`}
-                                    className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {activeActionKey === `request:${user.displayName}` ? 'Sending…' : 'Send Request'}
-                                  </button>
-                                )}
-
-                                {hasAcceptedChat && !pendingRequest && !isBlocked && (
-                                  <button
-                                    type="button"
-                                    disabled
-                                    className="rounded-md border border-rose-400 bg-rose-300 px-3 py-1 text-xs font-medium text-rose-700 disabled:cursor-not-allowed disabled:opacity-80"
-                                  >
-                                    Already chatting
-                                  </button>
-                                )}
-
-                                {pendingRequest && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void cancelRequest(pendingRequest.id)}
-                                    disabled={activeActionKey === `cancel-request:${pendingRequest.id}`}
-                                    className="rounded-md border border-red-700 bg-red-700 px-3 py-1 text-xs font-medium text-red-100 hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {activeActionKey === `cancel-request:${pendingRequest.id}` ? 'Canceling…' : 'Cancel'}
-                                  </button>
-                                )}
-
-                                {!isBlocked && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void blockUser(user.id)}
-                                    disabled={activeActionKey === `block:${user.id}`}
-                                    className="rounded-md border border-rose-700 bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {activeActionKey === `block:${user.id}` ? 'Blocking…' : 'Block'}
-                                  </button>
-                                )}
-
-                                {isBlocked && (
-                                  <button
-                                    type="button"
-                                    onClick={() => void unblockUser(user.id)}
-                                    disabled={activeActionKey === `unblock:${user.id}`}
-                                    className="rounded-md border border-green-700 bg-green-700 px-3 py-1 text-xs font-medium text-green-100 hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-70"
-                                  >
-                                    {activeActionKey === `unblock:${user.id}` ? 'Unblocking…' : 'Unblock'}
-                                  </button>
-                                )}
-                              </div>
-                            )}
-                          </li>
-                        )
-                      })}
-
-                      {filteredPublicUsers.length === 0 && <li className="text-xs text-rose-700">No public users found.</li>}
-                    </ul>
-                  </section>
-
-                  <section>
                     <h2 className="mb-2 text-sm font-semibold text-rose-700">Recent Chats</h2>
                     <ul className="flex flex-col gap-2">
                       {filteredRecentChats.map((chat) => {
@@ -472,11 +394,21 @@ export function AuthModuleView({
                               <button
                                 type="button"
                                 onClick={() => closeRecentChat(chat.id)}
-                                className={`rounded-md p-1 ${isActive ? 'hover:bg-rose-800' : 'hover:bg-rose-200'}`}
+                                className={`rounded-md p-1 ${isActive ? 'hover:bg-rose-800 active:bg-rose-900' : 'hover:bg-rose-200 active:bg-rose-300'}`}
                                 aria-label={`Close chat with ${other.displayName}`}
                                 title="Close chat"
                               >
                                 <X className="h-3.5 w-3.5" aria-hidden="true" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmBlockUser({ id: other.id, displayName: other.displayName })}
+                                disabled={activeActionKey === `block:${other.id}`}
+                                className={`rounded-md p-1 disabled:cursor-not-allowed disabled:opacity-70 ${isActive ? 'hover:bg-rose-800 active:bg-rose-900' : 'hover:bg-rose-200 active:bg-rose-300'}`}
+                                aria-label={`Block ${other.displayName}`}
+                                title="Block user"
+                              >
+                                <Ban className="h-3.5 w-3.5" aria-hidden="true" />
                               </button>
                             </div>
                           </li>
@@ -544,28 +476,32 @@ export function AuthModuleView({
                   <section>
                     <h2 className="mb-2 text-sm font-semibold text-rose-700">Saved Chats</h2>
                     <ul className="flex flex-col gap-2">
-                      {filteredSavedChats.map((savedChat) => (
-                        <li key={savedChat.id} className="rounded-md border border-rose-300 bg-rose-100 p-2">
-                          <div className="mb-2 text-xs text-rose-700">{getOtherUser(savedChat.chatRequest).displayName}</div>
-                          <div className="flex flex-wrap gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleOpenChat(savedChat.chatRequestId)}
-                              className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800"
-                            >
-                              Open
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void removeSavedChat(savedChat.id)}
-                              disabled={activeActionKey === `delete-chat:${savedChat.id}`}
-                              className="rounded-md border border-red-700 bg-red-700 px-3 py-1 text-xs font-medium text-red-100 hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                              {activeActionKey === `delete-chat:${savedChat.id}` ? 'Deleting…' : 'Delete'}
-                            </button>
-                          </div>
-                        </li>
-                      ))}
+                      {filteredSavedChats.map((savedChat) => {
+                        const other = getOtherUser(savedChat.chatRequest)
+                        return (
+                          <li key={savedChat.id}>
+                            <div className="flex items-center gap-2 rounded-md border border-rose-300 bg-rose-100 px-2 py-2 hover:bg-rose-200 active:bg-rose-300 transition-colors">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenChat(savedChat.chatRequestId)}
+                                className="min-w-0 flex-1 truncate text-left text-sm text-rose-700"
+                              >
+                                {other.displayName}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setConfirmDeleteChat({ id: savedChat.id, displayName: other.displayName })}
+                                disabled={activeActionKey === `delete-chat:${savedChat.id}`}
+                                className="rounded-md p-1 text-rose-700 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-70"
+                                aria-label={`Delete chat with ${other.displayName}`}
+                                title="Delete saved chat"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                              </button>
+                            </div>
+                          </li>
+                        )
+                      })}
 
                       {filteredSavedChats.length === 0 && <li className="text-xs text-rose-700">No saved chats.</li>}
                     </ul>
@@ -575,16 +511,20 @@ export function AuthModuleView({
                     <h2 className="mb-2 text-sm font-semibold text-rose-700">Blocked Users</h2>
                     <ul className="flex flex-col gap-2">
                       {filteredBlockedUsers.map((blockedUser) => (
-                        <li key={blockedUser.id} className="rounded-md border border-rose-300 bg-rose-100 p-2">
-                          <div className="mb-2 text-xs text-rose-700">{blockedUser.displayName}</div>
-                          <button
-                            type="button"
-                            onClick={() => void unblockUser(blockedUser.id)}
-                            disabled={activeActionKey === `unblock:${blockedUser.id}`}
-                            className="rounded-md border border-green-700 bg-green-700 px-3 py-1 text-xs font-medium text-green-100 hover:bg-green-800 disabled:cursor-not-allowed disabled:opacity-70"
-                          >
-                            {activeActionKey === `unblock:${blockedUser.id}` ? 'Unblocking…' : 'Unblock'}
-                          </button>
+                        <li key={blockedUser.id}>
+                          <div className="flex items-center gap-2 rounded-md border border-rose-300 bg-rose-100 px-2 py-2 transition-colors hover:bg-rose-200 active:bg-rose-300">
+                            <span className="min-w-0 flex-1 truncate text-sm text-rose-700">{blockedUser.displayName}</span>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmUnblockUser({ id: blockedUser.id, displayName: blockedUser.displayName })}
+                              disabled={activeActionKey === `unblock:${blockedUser.id}`}
+                              className="shrink-0 rounded-md p-1 text-rose-700 hover:bg-rose-300 active:bg-rose-400 disabled:cursor-not-allowed disabled:opacity-70"
+                              aria-label={`Unblock ${blockedUser.displayName}`}
+                              title="Unblock user"
+                            >
+                              <ShieldOff className="h-3.5 w-3.5" aria-hidden="true" />
+                            </button>
+                          </div>
                         </li>
                       ))}
 
@@ -628,7 +568,7 @@ export function AuthModuleView({
                 </div>
               </aside>
 
-              <section className="min-w-0 h-full min-h-0 overflow-hidden rounded-md border border-rose-300 bg-rose-200 p-4">
+              <section className="min-w-0 h-full min-h-0 overflow-hidden rounded-md border border-rose-300 bg-rose-200 p-4 landscape:max-lg:h-auto landscape:max-lg:overflow-visible">
                 {isDashboardLoading && <p className="text-sm text-rose-700">Loading your workspace…</p>}
 
                 {!isDashboardLoading && profile && centerView === 'profile' && (
@@ -690,7 +630,7 @@ export function AuthModuleView({
                 )}
 
                 {!isDashboardLoading && profile && centerView === 'chat' && (
-                  <div className="mx-auto flex h-full min-h-0 w-full flex-col items-center gap-4 overflow-hidden">
+                  <div className="mx-auto flex h-full min-h-0 w-full flex-col items-center gap-4 overflow-hidden landscape:max-lg:h-auto landscape:max-lg:overflow-visible">
                     {!selectedChat && (
                       <div className="flex min-h-80 w-full items-center justify-center rounded-md border border-rose-300 bg-rose-100 p-6 text-center">
                         <div>
@@ -701,46 +641,55 @@ export function AuthModuleView({
                     )}
 
                     {selectedChat && (
-                      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-                        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <h2 className="text-base font-semibold">Chat with {getOtherUser(selectedChat).displayName}</h2>
-                            {joinedChatRequestId === selectedChat.id && !peerPresent && (
-                              <span className="rounded-full border border-amber-400 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
-                                Waiting for {getOtherUser(selectedChat).displayName} to join…
-                              </span>
-                            )}
+                      <div className="flex h-full min-h-0 w-full flex-col overflow-hidden landscape:max-lg:h-auto landscape:max-lg:overflow-visible">
+                        {joinedChatRequestId === selectedChat.id && !peerPresent && (
+                          <div className="mb-3">
+                            <span className="rounded-full border border-amber-400 bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                              Waiting for {getOtherUser(selectedChat).displayName} to join…
+                            </span>
                           </div>
-                          <div className="flex items-center gap-2">
-                            {!savedRequestIdSet.has(selectedChat.id) && (
-                              <button
-                                type="button"
-                                onClick={() => void saveAcceptedChat(selectedChat.id)}
-                                disabled={activeActionKey === `save-chat:${selectedChat.id}`}
-                                className="rounded-md border border-rose-700 bg-rose-700 px-3 py-1 text-xs font-medium text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-70"
-                              >
-                                {activeActionKey === `save-chat:${selectedChat.id}` ? 'Saving…' : 'Save chat'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
+                        )}
 
-                        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden grid-rows-2">
+                        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden grid-rows-2 landscape:max-lg:flex-none landscape:max-lg:overflow-visible landscape:max-lg:grid-rows-none landscape:max-lg:min-h-[500px]">
                           <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
-                            <p className="mb-2 text-xs text-rose-700">{getOtherUser(selectedChat).displayName}'s canvas</p>
-                            <canvas ref={remoteCanvasRef} className="h-full min-h-0 w-full rounded-md border border-rose-300 bg-rose-50 cursor-not-allowed" />
+                            <canvas ref={remoteCanvasRef} className="h-full min-h-0 w-full rounded-md border border-rose-300 bg-rose-50 cursor-not-allowed landscape:max-lg:min-h-[200px]" />
                           </div>
                           <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
-                            <div className="mb-2 flex flex-wrap items-center gap-2">
-                              <p className="text-xs text-rose-700">Your canvas</p>
+                            <div className="mb-2 flex flex-wrap items-center gap-1">
                               <button
                                 type="button"
                                 onClick={clearLocalCanvasAndNotify}
                                 disabled={joinedChatRequestId !== selectedChat.id || !peerPresent}
-                                className="rounded-md border border-rose-700 bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                className="rounded-md border border-red-700 bg-red-600 p-1 text-white hover:bg-red-700 active:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                title="Clear canvas"
+                                aria-label="Clear canvas"
                               >
-                                CLS
+                                <Eraser className="h-5 w-5" aria-hidden="true" />
                               </button>
+                              {!savedRequestIdSet.has(selectedChat.id) && (
+                                <button
+                                  type="button"
+                                  onClick={() => void saveAcceptedChat(selectedChat.id)}
+                                  disabled={activeActionKey === `save-chat:${selectedChat.id}`}
+                                  className="rounded-md border border-rose-700 bg-rose-700 p-1 text-white hover:bg-rose-800 active:bg-rose-900 disabled:cursor-not-allowed disabled:opacity-70"
+                                  title="Save chat"
+                                  aria-label="Save chat"
+                                >
+                                  <Save className="h-5 w-5" aria-hidden="true" />
+                                </button>
+                              )}
+                              {(showReconnectButton || isReconnecting) && (
+                                <button
+                                  type="button"
+                                  onClick={reconnectToRoom}
+                                  disabled={isReconnecting}
+                                  className="rounded-md border border-amber-600 bg-amber-500 p-1 text-white hover:bg-amber-600 active:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                  title="Reconnect to room"
+                                  aria-label="Reconnect to room"
+                                >
+                                  <RefreshCw className={`h-5 w-5 ${isReconnecting ? 'animate-spin' : ''}`} aria-hidden="true" />
+                                </button>
+                              )}                              
                               <div className="ml-auto flex flex-wrap items-center gap-1">
                                 <button
                                   type="button"
@@ -748,12 +697,12 @@ export function AuthModuleView({
                                   title="Eraser"
                                   aria-label="Eraser tool"
                                   style={{
-                                    borderColor: drawColor === 'eraser' ? '#9f1239' : '#fda4af',
-                                    boxShadow: drawColor === 'eraser' ? '0 0 0 2px #f43f5e' : undefined,
+                                    borderColor: drawColor === 'eraser' ? '#15803d' : '#86efac',
+                                    boxShadow: drawColor === 'eraser' ? '0 0 0 2px #22c55e' : undefined,
                                   }}
-                                  className={`flex h-9 w-9 items-center justify-center rounded-full border-2 bg-white transition-transform ${drawColor === 'eraser' ? 'scale-125' : 'hover:scale-110'}`}
+                                  className={`flex h-9 w-9 items-center justify-center rounded-full border-2 bg-green-100 transition-transform ${drawColor === 'eraser' ? 'scale-125' : 'hover:scale-110'}`}
                                 >
-                                  <Eraser className="h-4 w-4 text-rose-700" aria-hidden="true" />
+                                  <Eraser className="h-4 w-4 text-green-700" aria-hidden="true" />
                                 </button>
                                 {presetColors.map((color) => (
                                   <button
@@ -788,7 +737,7 @@ export function AuthModuleView({
                               onPointerUp={stopLocalDrawing}
                               onPointerLeave={stopLocalDrawing}
                               onPointerCancel={stopLocalDrawing}
-                              className={`h-full min-h-0 w-full touch-none rounded-md border border-rose-300 bg-rose-50 ${
+                              className={`h-full min-h-0 w-full touch-none rounded-md border border-rose-300 bg-rose-50 landscape:max-lg:min-h-[200px] ${
                                 !peerPresent ? 'cursor-not-allowed opacity-50' : ''
                               }`}
                             />
@@ -805,6 +754,123 @@ export function AuthModuleView({
 
         <NoticeBanner notice={notice} />
       </div>
+
+      {confirmUnblockUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-unblock-title"
+        >
+          <div className="w-full max-w-sm rounded-xl border border-rose-300 bg-white p-6 shadow-xl">
+            <h2 id="confirm-unblock-title" className="mb-3 text-base font-semibold text-rose-800">
+              Unblock User
+            </h2>
+            <p className="mb-6 text-sm text-rose-700">
+              Are you sure you want to unblock{' '}
+              <span className="font-semibold">{confirmUnblockUser.displayName}</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmUnblockUser(null)}
+                className="rounded-md border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100 active:bg-rose-200"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void unblockUser(confirmUnblockUser.id)
+                  setConfirmUnblockUser(null)
+                }}
+                disabled={activeActionKey === `unblock:${confirmUnblockUser.id}`}
+                className="rounded-md border border-green-700 bg-green-700 px-4 py-2 text-sm font-medium text-green-100 hover:bg-green-800 active:bg-green-900 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                Yes, unblock
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmBlockUser && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-block-title"
+        >
+          <div className="w-full max-w-sm rounded-xl border border-rose-300 bg-white p-6 shadow-xl">
+            <h2 id="confirm-block-title" className="mb-3 text-base font-semibold text-rose-800">
+              Block User
+            </h2>
+            <p className="mb-6 text-sm text-rose-700">
+              Are you sure you want to block{' '}
+              <span className="font-semibold">{confirmBlockUser.displayName}</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmBlockUser(null)}
+                className="rounded-md border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100 active:bg-rose-200"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void blockUser(confirmBlockUser.id)
+                  setConfirmBlockUser(null)
+                }}
+                disabled={activeActionKey === `block:${confirmBlockUser.id}`}
+                className="rounded-md border border-red-700 bg-red-700 px-4 py-2 text-sm font-medium text-red-100 hover:bg-red-800 active:bg-red-900 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                Yes, block
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteChat && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-delete-title"
+        >
+          <div className="w-full max-w-sm rounded-xl border border-rose-300 bg-white p-6 shadow-xl">
+            <h2 id="confirm-delete-title" className="mb-3 text-base font-semibold text-rose-800">
+              Delete Saved Chat
+            </h2>
+            <p className="mb-6 text-sm text-rose-700">
+              Are you sure you want to delete your chat with{' '}
+              <span className="font-semibold">{confirmDeleteChat.displayName}</span>?
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteChat(null)}
+                className="rounded-md border border-rose-300 bg-rose-50 px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-100"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  void removeSavedChat(confirmDeleteChat.id)
+                  setConfirmDeleteChat(null)
+                }}
+                disabled={activeActionKey === `delete-chat:${confirmDeleteChat.id}`}
+                className="rounded-md border border-red-700 bg-red-700 px-4 py-2 text-sm font-medium text-red-100 hover:bg-red-800 disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                Yes, delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   )
 }
