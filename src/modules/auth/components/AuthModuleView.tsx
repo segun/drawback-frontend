@@ -209,7 +209,7 @@ export function AuthModuleView({
       <header className={`${accessToken ? 'border-b border-rose-300 bg-rose-200/80' : 'mb-6 border-b border-rose-300 bg-rose-200/80'}`}>
         <nav className={`mx-auto flex w-full items-center justify-between ${accessToken ? 'max-w-screen-2xl px-1 py-2' : 'max-w-xl px-4 py-3'}`}>
           <img
-            src="/images/logo/logo_main.png"
+            src="/images/logo/logo_main.jpg"
             alt="DrawkcaB logo"
             className={`${accessToken ? 'h-10 w-32' : 'h-12 w-36'} rounded-md border border-rose-300 object-cover`}
           />
@@ -454,11 +454,18 @@ export function AuthModuleView({
                             const actionKey = `request:${user.displayName}`
                             const isSending = activeActionKey === actionKey
                             return (
-                              <li key={user.id} className="flex items-center gap-2 rounded-md border border-rose-300 bg-rose-100 px-2 py-2">
+                              <li
+                                key={user.id}
+                                className={`flex items-center gap-2 rounded-md border border-rose-300 bg-rose-100 px-2 py-2 ${isConnected ? 'cursor-pointer hover:bg-rose-200' : ''}`}
+                                onClick={isConnected ? () => {
+                                  const chat = filteredRecentChats.find((c) => getOtherUser(c).id === user.id)
+                                  if (chat) handleOpenChat(chat.id)
+                                } : undefined}
+                              >
                                 <span className="min-w-0 flex-1 truncate text-sm text-rose-700">{user.displayName}</span>
                                 {isConnected ? (
                                   <span className="shrink-0 rounded-md border border-rose-400 bg-rose-50 px-2 py-1 text-xs font-medium text-rose-500">
-                                    Already connected
+                                    Connected
                                   </span>
                                 ) : (
                                   <button
@@ -800,17 +807,25 @@ export function AuthModuleView({
                       />
                     </label>
 
-                    <label className="flex flex-col gap-1 text-sm">
+                    <div className="flex flex-col gap-1 text-sm">
                       Profile visibility
-                      <select
-                        value={profileMode}
-                        onChange={(event) => setProfileMode(event.target.value as UserMode)}
-                        className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600"
-                      >
-                        <option value="PRIVATE">Private (default)</option>
-                        <option value="PUBLIC">Public</option>
-                      </select>
-                    </label>
+                      <div className="grid grid-cols-2 rounded-md border border-rose-300 bg-rose-100 p-0.5">
+                        <button
+                          type="button"
+                          onClick={() => setProfileMode('PRIVATE')}
+                          className={`rounded px-3 py-2 text-sm font-medium transition-colors ${profileMode === 'PRIVATE' ? 'bg-rose-700 text-rose-100' : 'text-rose-700 hover:bg-rose-200'}`}
+                        >
+                          Private
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setProfileMode('PUBLIC')}
+                          className={`rounded px-3 py-2 text-sm font-medium transition-colors ${profileMode === 'PUBLIC' ? 'bg-rose-700 text-rose-100' : 'text-rose-700 hover:bg-rose-200'}`}
+                        >
+                          Public
+                        </button>
+                      </div>
+                    </div>
 
                     <label className={`flex flex-row items-center gap-2 text-sm ${profileMode === 'PUBLIC' ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`}>
                       <input

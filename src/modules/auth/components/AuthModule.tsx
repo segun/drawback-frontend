@@ -956,7 +956,7 @@ export function AuthModule() {
   const filteredRecentChats = recentChats.filter((chat) => !closedRecentChatRequestIds.has(chat.id) && includesSearch(getOtherUser(chat).displayName))
   const filteredChatRequests = chatRequests.filter((request) => {
     const other = getOtherUser(request)
-    return request.status !== 'ACCEPTED' && includesSearch(`${other.displayName} ${request.status}`)
+    return request.status !== 'ACCEPTED' && request.status !== 'REJECTED' && includesSearch(`${other.displayName} ${request.status}`)
   })
   const filteredSavedChats = savedChats.filter(
     (savedChat) =>
