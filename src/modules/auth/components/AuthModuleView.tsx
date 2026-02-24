@@ -1,4 +1,5 @@
 import { useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { Eraser, LogOut, Menu, User, X } from 'lucide-react'
 import { NoticeBanner, type Notice } from '../../../common/components/NoticeBanner'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../constants'
 import type { BlockedUser, ChatRequest, SavedChat, UserMode, UserProfile } from '../api/socialApi'
@@ -186,11 +187,7 @@ export function AuthModuleView({
                 aria-label="Open menu"
                 className="rounded-md border border-rose-400 bg-rose-300 p-2 text-rose-700 hover:bg-rose-400 lg:hidden"
               >
-                <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <line x1="3" y1="6" x2="21" y2="6" />
-                  <line x1="3" y1="12" x2="21" y2="12" />
-                  <line x1="3" y1="18" x2="21" y2="18" />
-                </svg>
+                <Menu className="h-5 w-5" aria-hidden="true" />
               </button>
             )}
           </div>
@@ -361,10 +358,7 @@ export function AuthModuleView({
                     aria-label="Close menu"
                     className="rounded-md p-1 text-rose-700 hover:bg-rose-300"
                   >
-                    <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <path d="M18 6L6 18" />
-                      <path d="M6 6l12 12" />
-                    </svg>
+                    <X className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
                 <div className="border-b border-rose-300 p-3">
@@ -482,10 +476,7 @@ export function AuthModuleView({
                                 aria-label={`Close chat with ${other.displayName}`}
                                 title="Close chat"
                               >
-                                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                                  <path d="M18 6L6 18" />
-                                  <path d="M6 6l12 12" />
-                                </svg>
+                                <X className="h-3.5 w-3.5" aria-hidden="true" />
                               </button>
                             </div>
                           </li>
@@ -612,10 +603,7 @@ export function AuthModuleView({
                         title="Profile"
                         className="rounded-md border border-rose-700 bg-rose-700 p-2 text-rose-100 hover:bg-rose-800"
                       >
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                          <path d="M20 21a8 8 0 0 0-16 0" />
-                          <circle cx="12" cy="8" r="4" />
-                        </svg>
+                        <User className="h-5 w-5" aria-hidden="true" />
                       </button>
                       <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded-md border border-rose-300 bg-rose-100 px-2 py-1 text-xs text-rose-700 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         Profile
@@ -630,11 +618,7 @@ export function AuthModuleView({
                         title="Logout"
                         className="rounded-md border border-rose-700 bg-rose-100 p-2 text-rose-700 hover:bg-rose-200"
                       >
-                        <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                          <path d="M16 17l5-5-5-5" />
-                          <path d="M21 12H9" />
-                        </svg>
+                        <LogOut className="h-5 w-5" aria-hidden="true" />
                       </button>
                       <span className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 rounded-md border border-rose-300 bg-rose-100 px-2 py-1 text-xs text-rose-700 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                         Logout
@@ -728,14 +712,6 @@ export function AuthModuleView({
                             )}
                           </div>
                           <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={clearLocalCanvasAndNotify}
-                              disabled={joinedChatRequestId !== selectedChat.id || !peerPresent}
-                              className="rounded-md border border-rose-700 bg-rose-100 px-3 py-1 text-xs font-medium text-rose-700 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
-                              Clear mine
-                            </button>
                             {!savedRequestIdSet.has(selectedChat.id) && (
                               <button
                                 type="button"
@@ -757,7 +733,28 @@ export function AuthModuleView({
                           <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
                             <div className="mb-2 flex flex-wrap items-center gap-2">
                               <p className="text-xs text-rose-700">Your canvas</p>
+                              <button
+                                type="button"
+                                onClick={clearLocalCanvasAndNotify}
+                                disabled={joinedChatRequestId !== selectedChat.id || !peerPresent}
+                                className="rounded-md border border-rose-700 bg-rose-100 px-2 py-0.5 text-xs font-medium text-rose-700 hover:bg-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                CLS
+                              </button>
                               <div className="ml-auto flex flex-wrap items-center gap-1">
+                                <button
+                                  type="button"
+                                  onClick={() => setDrawColor('eraser')}
+                                  title="Eraser"
+                                  aria-label="Eraser tool"
+                                  style={{
+                                    borderColor: drawColor === 'eraser' ? '#9f1239' : '#fda4af',
+                                    boxShadow: drawColor === 'eraser' ? '0 0 0 2px #f43f5e' : undefined,
+                                  }}
+                                  className={`flex h-9 w-9 items-center justify-center rounded-full border-2 bg-white transition-transform ${drawColor === 'eraser' ? 'scale-125' : 'hover:scale-110'}`}
+                                >
+                                  <Eraser className="h-4 w-4 text-rose-700" aria-hidden="true" />
+                                </button>
                                 {presetColors.map((color) => (
                                   <button
                                     key={color}
@@ -777,7 +774,7 @@ export function AuthModuleView({
                                   <span className="sr-only">Custom color</span>
                                   <input
                                     type="color"
-                                    value={drawColor}
+                                    value={drawColor === 'eraser' ? '#000000' : drawColor}
                                     onChange={(event) => setDrawColor(event.target.value)}
                                     className="h-5 w-5 cursor-pointer rounded border border-rose-300 p-0"
                                   />

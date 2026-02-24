@@ -25,18 +25,13 @@ type DrawSegmentStroke = {
 }
 
 const DRAW_WIDTH = 2
+const ERASER_WIDTH = 40
 
 const PRESET_COLORS = [
   '#000000',
-  '#374151',
   '#be123c',
-  '#ea580c',
-  '#d97706',
-  '#16a34a',
-  '#0d9488',
   '#2563eb',
-  '#7c3aed',
-  '#db2777',
+  '#16a34a',
   '#ffffff',
 ]
 
@@ -160,12 +155,24 @@ export function AuthModule() {
     const width = canvas.clientWidth
     const height = canvas.clientHeight
 
-    context.strokeStyle = stroke.color
-    context.lineWidth = stroke.width
-    context.beginPath()
-    context.moveTo(stroke.from.x * width, stroke.from.y * height)
-    context.lineTo(stroke.to.x * width, stroke.to.y * height)
-    context.stroke()
+    if (stroke.color === 'eraser') {
+      context.save()
+      context.globalCompositeOperation = 'destination-out'
+      context.strokeStyle = 'rgba(0,0,0,1)'
+      context.lineWidth = stroke.width
+      context.beginPath()
+      context.moveTo(stroke.from.x * width, stroke.from.y * height)
+      context.lineTo(stroke.to.x * width, stroke.to.y * height)
+      context.stroke()
+      context.restore()
+    } else {
+      context.strokeStyle = stroke.color
+      context.lineWidth = stroke.width
+      context.beginPath()
+      context.moveTo(stroke.from.x * width, stroke.from.y * height)
+      context.lineTo(stroke.to.x * width, stroke.to.y * height)
+      context.stroke()
+    }
   }
 
   const clearCanvas = (canvas: HTMLCanvasElement | null): void => {
@@ -525,7 +532,7 @@ export function AuthModule() {
       from: localLastPointRef.current,
       to: nextPoint,
       color: drawColor,
-      width: DRAW_WIDTH,
+      width: drawColor === 'eraser' ? ERASER_WIDTH : DRAW_WIDTH,
     }
 
     drawSegmentOnCanvas(localCanvasRef.current, stroke)
