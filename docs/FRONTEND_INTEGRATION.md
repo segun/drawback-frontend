@@ -21,7 +21,15 @@
 ## General Conventions
 
 ### Authorization header
-Every endpoint except `POST /auth/register`, `GET /auth/confirm/:token`, and `POST /auth/login` requires a Bearer token:
+Every endpoint except the ones listed below requires a Bearer token:
+
+- `POST /auth/register`
+- `GET /auth/confirm/:token`
+- `POST /auth/resend-confirmation`
+- `POST /auth/login`
+- `GET /auth/display-name/check`
+
+**Authorization header format:**
 
 ```
 Authorization: Bearer <accessToken>
@@ -81,6 +89,55 @@ Register a new account. Sends a confirmation email — the user **cannot log in*
 |---|---|
 | `400` | Validation failure (bad email, short password, invalid displayName format) |
 | `409` | Email or displayName already in use |
+
+---
+
+### `POST /auth/resend-confirmation`
+
+Resend the email confirmation link. Use this when the user says they never received the original email or the link expired.
+
+**Request**
+```json
+{
+  "email": "alice@example.com"
+}
+```
+
+**Response `201`**
+```json
+{
+  "message": "If that email exists and is unactivated, a new confirmation link has been sent."
+}
+```
+
+> The response is intentionally vague — it does not reveal whether the email exists. Rate-limited to **5 requests per minute**.
+
+---
+
+### `GET /auth/display-name/check?name=@alice`
+
+Check whether a display name is free before the user submits the registration form (or before changing their display name). **No authentication required.**
+
+**Query params**
+| Param | Description |
+|---|---|
+| `name` | The display name to check, e.g. `@alice`. The `@` prefix is required. |
+
+**Response `200`**
+```json
+{ "available": true }
+```
+or
+```json
+{ "available": false }
+```
+
+**Error cases**
+| Status | Reason |
+|---|---|
+| `400` | `name` query param not provided |
+
+> Rate-limited to **10 requests per minute** per IP. Display names are public identifiers so this endpoint leaks no private data.
 
 ---
 
@@ -501,15 +558,18 @@ Confirmation that **your** `chat.join` succeeded.
 ```jsonc
 {
   "roomId": "chat:uuid",
-  "requestId": "uuid"
+  "requestId": "uuid",
+  "peers": ["uuid"]   // user IDs already in the room; empty if you joined first
 }
 ```
+
+Check `peers` immediately after receiving this event to initialise peer-presence UI — if the array is non-empty, the other participant is already in the room and no separate `draw.peer.joined` will arrive for them.
 
 ---
 
 #### `draw.peer.joined`
 
-The other participant has joined the room. Use this to show a "peer connected" UI state.
+The other participant has joined **after** you. Use this to show a "peer connected" UI state. (If you joined second, use the `peers` array from `chat.joined` instead.)
 
 ```jsonc
 {
@@ -759,6 +819,8 @@ Blocked users disappear from `/users/public` and `/users/search` automatically. 
 |---|---|---|---|
 | `POST` | `/auth/register` | — | Register |
 | `GET` | `/auth/confirm/:token` | — | Confirm email |
+| `POST` | `/auth/resend-confirmation` | — | Resend confirmation email |
+| `GET` | `/auth/display-name/check?name=` | — | Check display name availability |
 | `POST` | `/auth/login` | — | Login, get JWT |
 | `GET` | `/users/me` | ✓ | Get own profile |
 | `PATCH` | `/users/me` | ✓ | Update display name |

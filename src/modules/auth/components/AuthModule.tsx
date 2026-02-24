@@ -69,6 +69,7 @@ export function AuthModule() {
   const [registerEmail, setRegisterEmail] = useState('')
   const [registerPassword, setRegisterPassword] = useState('')
   const [registerDisplayName, setRegisterDisplayName] = useState('@')
+  const [displayNameAvailability, setDisplayNameAvailability] = useState<'idle' | 'invalid' | 'checking' | 'available' | 'taken'>('idle')
 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -206,6 +207,28 @@ export function AuthModule() {
     return trimmedValue.startsWith('@') ? trimmedValue : `@${trimmedValue}`
   }
 
+  useEffect(() => {
+    const trimmed = registerDisplayName.trim()
+    if (!isValidDisplayName(trimmed)) {
+      // Only show 'invalid' once the user has typed something beyond the bare '@'
+      setDisplayNameAvailability(trimmed.length > 1 ? 'invalid' : 'idle')
+      return
+    }
+
+    setDisplayNameAvailability('checking')
+    const timer = setTimeout(() => {
+      authApi.checkDisplayNameAvailability(trimmed)
+        .then(({ available }) => {
+          setDisplayNameAvailability(available ? 'available' : 'taken')
+        })
+        .catch(() => {
+          setDisplayNameAvailability('idle')
+        })
+    }, 400)
+
+    return () => clearTimeout(timer)
+  }, [registerDisplayName])
+
   const validateRegisterInput = (): string | null => {
     const email = registerEmail.trim()
     const password = registerPassword
@@ -233,6 +256,12 @@ export function AuthModule() {
       }
       if (error.status === 401) {
         return error.message || 'Invalid credentials or account not activated yet.'
+      }
+      if (error.status === 403) {
+        return error.message || 'You are not allowed to perform this action.'
+      }
+      if (error.status === 404) {
+        return error.message || 'The requested resource was not found.'
       }
       if (error.status === 409) {
         return error.message || 'Email or display name is already in use.'
@@ -360,6 +389,18 @@ export function AuthModule() {
       showNotice(validationError, 'error')
       return
     }
+    if (displayNameAvailability === 'invalid') {
+      showNotice('Display name must start with @ followed by 3–29 letters, numbers or underscores.', 'error')
+      return
+    }
+    if (displayNameAvailability === 'taken') {
+      showNotice('That display name is already taken. Please choose another.', 'error')
+      return
+    }
+    if (displayNameAvailability === 'checking') {
+      showNotice('Still checking display name availability. Please wait a moment.', 'info')
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -371,6 +412,7 @@ export function AuthModule() {
       showNotice('Registration successful. Please check your email to activate your account.', 'success')
       setLoginEmail(registerEmail.trim())
       setRegisterPassword('')
+      setDisplayNameAvailability('idle')
       setTab('login')
     } catch (error) {
       showNotice(mapErrorToMessage(error), 'error')
@@ -433,14 +475,31 @@ export function AuthModule() {
       return
     }
 
+    const displayNameChanged = profile?.displayName !== displayName
+    const modeChanged = profile?.mode !== profileMode
+
+    if (!displayNameChanged && !modeChanged) {
+      showNotice('No changes to save.', 'info')
+      return
+    }
+
     setIsUpdatingProfile(true)
     try {
-      const updatedProfile = await socialApi.updateMyProfile({ displayName })
-      const updatedMode = await socialApi.updateMyMode(profileMode)
+      let latest: UserProfile | null = profile ?? null
 
-      setProfile(updatedMode)
-      setProfileDisplayName(updatedProfile.displayName)
-      setProfileMode(updatedMode.mode)
+      if (displayNameChanged) {
+        latest = await socialApi.updateMyProfile({ displayName })
+      }
+
+      if (modeChanged) {
+        latest = await socialApi.updateMyMode(profileMode)
+      }
+
+      if (latest) {
+        setProfile(latest)
+        setProfileDisplayName(latest.displayName)
+        setProfileMode(latest.mode)
+      }
       showNotice('Profile updated successfully.', 'success')
       await loadDashboardData(false)
     } catch (error) {
@@ -923,6 +982,7 @@ export function AuthModule() {
       registerDisplayName={registerDisplayName}
       setRegisterDisplayName={setRegisterDisplayName}
       normalizeRegisterDisplayNameInput={normalizeRegisterDisplayNameInput}
+      displayNameAvailability={displayNameAvailability}
       loginEmail={loginEmail}
       setLoginEmail={setLoginEmail}
       loginPassword={loginPassword}
@@ -983,6 +1043,7 @@ export function AuthModule() {
       setDrawColor={setDrawColor}
       presetColors={PRESET_COLORS}
       notice={notice}
+      onDismissNotice={() => setNotice(null)}
     />
   )
 }

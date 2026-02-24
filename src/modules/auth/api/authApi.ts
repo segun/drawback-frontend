@@ -59,9 +59,11 @@ export const createAuthApi = (baseUrl: string) => {
     if (!response.ok) {
       let message = `Request failed: ${response.status}`
       try {
-        const errorBody = (await response.json()) as { message?: string }
+        const errorBody = (await response.json()) as { message?: string | string[] }
         if (errorBody?.message) {
-          message = errorBody.message
+          message = Array.isArray(errorBody.message)
+            ? errorBody.message.join('. ')
+            : errorBody.message
         }
       } catch {
         // no-op
@@ -111,10 +113,19 @@ export const createAuthApi = (baseUrl: string) => {
     return result
   }
 
+  const checkDisplayNameAvailability = async (name: string): Promise<{ available: boolean }> => {
+    return request<{ available: boolean }>(
+      `/auth/display-name/check?name=${encodeURIComponent(name)}`,
+      {},
+      false,
+    )
+  }
+
   return {
     register,
     login,
     request,
+    checkDisplayNameAvailability,
     getAccessToken,
     setAccessToken,
     logout: clearAccessToken,

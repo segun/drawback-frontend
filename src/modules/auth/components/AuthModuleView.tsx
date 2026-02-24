@@ -1,5 +1,5 @@
 import { useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { Ban, Bookmark, Eraser, LogOut, Menu, RefreshCw, Save, SaveAll, ShieldOff, Trash2, User, X } from 'lucide-react'
+import { Ban, Bookmark, Eraser, LogOut, Menu, Plus, RefreshCw, Save, SaveAll, Send, ShieldOff, Trash2, User, X } from 'lucide-react'
 import { NoticeBanner, type Notice } from '../../../common/components/NoticeBanner'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../constants'
 import type { BlockedUser, ChatRequest, SavedChat, UserMode, UserProfile } from '../api/socialApi'
@@ -21,6 +21,7 @@ type AuthModuleViewProps = {
   registerDisplayName: string
   setRegisterDisplayName: (value: string) => void
   normalizeRegisterDisplayNameInput: (value: string) => string
+  displayNameAvailability: 'idle' | 'invalid' | 'checking' | 'available' | 'taken'
   loginEmail: string
   setLoginEmail: (value: string) => void
   loginPassword: string
@@ -91,6 +92,7 @@ type AuthModuleViewProps = {
   presetColors: string[]
 
   notice: Notice | null
+  onDismissNotice: () => void
 }
 
 export function AuthModuleView({
@@ -107,6 +109,7 @@ export function AuthModuleView({
   registerDisplayName,
   setRegisterDisplayName,
   normalizeRegisterDisplayNameInput,
+  displayNameAvailability,
   loginEmail,
   setLoginEmail,
   loginPassword,
@@ -167,16 +170,35 @@ export function AuthModuleView({
   setDrawColor,
   presetColors,
   notice,
+  onDismissNotice,
 }: AuthModuleViewProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
   const [confirmDeleteChat, setConfirmDeleteChat] = useState<{ id: string; displayName: string } | null>(null)
   const [confirmBlockUser, setConfirmBlockUser] = useState<{ id: string; displayName: string } | null>(null)
   const [confirmUnblockUser, setConfirmUnblockUser] = useState<{ id: string; displayName: string } | null>(null)
+  const [showNewRequestForm, setShowNewRequestForm] = useState(false)
+  const [newRequestDisplayName, setNewRequestDisplayName] = useState('@')
+  const [isSubmittingNewRequest, setIsSubmittingNewRequest] = useState(false)
 
   const handleOpenChat = (chatRequestId: string) => {
     openChat(chatRequestId)
     setIsSidebarOpen(false)
   }
+
+  const newRequestTarget = newRequestDisplayName.trim().toLowerCase()
+  const newRequestIsSelf =
+    newRequestTarget.length > 1 && profile?.displayName.toLowerCase() === newRequestTarget
+  const newRequestIsAlreadyConnected =
+    newRequestTarget.length > 1 &&
+    filteredRecentChats.some((chat) => getOtherUser(chat).displayName.toLowerCase() === newRequestTarget)
+  const newRequestHasPending =
+    newRequestTarget.length > 1 &&
+    filteredChatRequests.some(
+      (req) =>
+        req.fromUserId === currentUserId &&
+        req.status === 'PENDING' &&
+        getOtherUser(req).displayName.toLowerCase() === newRequestTarget,
+    )
 
   return (
     <main className={`bg-rose-0 text-rose-800 ${accessToken ? 'flex h-dvh flex-col overflow-hidden landscape:max-lg:h-auto landscape:max-lg:overflow-y-auto' : 'min-h-dvh'}`}>
@@ -271,19 +293,52 @@ export function AuthModuleView({
                 />
               </label>
 
-              <label className="flex flex-col gap-1 text-sm">
-                Display name
-                <input
-                  type="text"
-                  value={registerDisplayName}
-                  onChange={(event) => setRegisterDisplayName(normalizeRegisterDisplayNameInput(event.target.value))}
-                  placeholder="@alice"
-                  required
-                  className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none placeholder:text-rose-500 focus:border-rose-600"
-                />
-              </label>
-
-              <p className="text-xs text-rose-600">Must match ^@[a-zA-Z0-9_]{'{'}3,29{'}'}$</p>
+              <div className="flex flex-col gap-1">
+                <label className="flex flex-col gap-1 text-sm">
+                  Display name
+                  <input
+                    type="text"
+                    value={registerDisplayName}
+                    onChange={(event) => setRegisterDisplayName(normalizeRegisterDisplayNameInput(event.target.value))}
+                    placeholder="@alice"
+                    required
+                    className={`rounded-md border px-3 py-2 outline-none placeholder:text-rose-500 bg-rose-100 ${
+                      displayNameAvailability === 'taken' || displayNameAvailability === 'invalid'
+                        ? 'border-red-500 focus:border-red-600'
+                        : displayNameAvailability === 'available'
+                          ? 'border-green-500 focus:border-green-600'
+                          : 'border-rose-300 focus:border-rose-600'
+                    }`}
+                  />
+                </label>
+                {displayNameAvailability === 'invalid' && (
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-red-700">
+                    <svg className="h-4 w-4 shrink-0 text-red-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22Z" clipRule="evenodd" /></svg>
+                    Must start with @ followed by 3–29 letters, numbers or underscores
+                  </p>
+                )}
+                {displayNameAvailability === 'checking' && (
+                  <p className="flex items-center gap-1.5 text-xs text-rose-500">
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-rose-400 border-t-transparent" />
+                    Checking availability…
+                  </p>
+                )}
+                {displayNameAvailability === 'available' && (
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-green-700">
+                    <svg className="h-4 w-4 shrink-0 text-green-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M16.704 5.296a1 1 0 0 1 0 1.414l-7.5 7.5a1 1 0 0 1-1.414 0l-3.5-3.5a1 1 0 1 1 1.414-1.414L8.5 12.086l6.79-6.79a1 1 0 0 1 1.414 0Z" clipRule="evenodd" /></svg>
+                    Display name is available
+                  </p>
+                )}
+                {displayNameAvailability === 'taken' && (
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-red-700">
+                    <svg className="h-4 w-4 shrink-0 text-red-600" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"><path fillRule="evenodd" d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16ZM8.28 7.22a.75.75 0 0 0-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 1 0 1.06 1.06L10 11.06l1.72 1.72a.75.75 0 1 0 1.06-1.06L11.06 10l1.72-1.72a.75.75 0 0 0-1.06-1.06L10 8.94 8.28 7.22Z" clipRule="evenodd" /></svg>
+                    Display name is already taken
+                  </p>
+                )}
+                {displayNameAvailability === 'idle' && (
+                  <p className="text-xs text-rose-600">Must match ^@[a-zA-Z0-9_]{'{'}3,29{'}'}$</p>
+                )}
+              </div>
 
               <button
                 type="submit"
@@ -479,7 +534,93 @@ export function AuthModuleView({
                   </section>
 
                   <section>
-                    <h2 className="mb-2 text-sm font-semibold text-rose-700">Chat Requests</h2>
+                    <div className="mb-2 flex items-center justify-between">
+                      <h2 className="text-sm font-semibold text-rose-700">Chat Requests</h2>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowNewRequestForm((prev) => !prev)
+                          setNewRequestDisplayName('@')
+                        }}
+                        aria-label="Send a new chat request"
+                        title="Send a new chat request"
+                        className="rounded-md border border-rose-400 bg-rose-200 p-0.5 text-rose-700 hover:bg-rose-300 active:bg-rose-400"
+                      >
+                        <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+                      </button>
+                    </div>
+                    {showNewRequestForm && (
+                      <>
+                      <form
+                        className="mb-3 flex gap-2"
+                        onSubmit={(e) => {
+                          e.preventDefault()
+                          if (isSubmittingNewRequest) return
+                          setIsSubmittingNewRequest(true)
+                          void sendRequest(newRequestDisplayName).finally(() => {
+                            setIsSubmittingNewRequest(false)
+                            setShowNewRequestForm(false)
+                            setNewRequestDisplayName('@')
+                          })
+                        }}
+                      >
+                        <input
+                          type="text"
+                          value={newRequestDisplayName}
+                          onChange={(e) => {
+                            const raw = e.target.value
+                            if (!raw.startsWith('@')) {
+                              setNewRequestDisplayName('@' + raw.replace(/^@+/, ''))
+                            } else {
+                              setNewRequestDisplayName(raw)
+                            }
+                          }}
+                          placeholder="@username"
+                          aria-label="Display name to send chat request to"
+                          className="min-w-0 flex-1 rounded-md border border-rose-300 bg-rose-50 px-2 py-1 text-xs text-rose-800 placeholder-rose-400 focus:outline-none focus:ring-1 focus:ring-rose-400"
+                          disabled={isSubmittingNewRequest}
+                          autoFocus
+                        />
+                        <button
+                          type="submit"
+                          disabled={
+                            isSubmittingNewRequest ||
+                            newRequestDisplayName.trim() === '@' ||
+                            newRequestDisplayName.trim().length < 2 ||
+                            newRequestIsSelf ||
+                            newRequestIsAlreadyConnected ||
+                            newRequestHasPending
+                          }
+                          aria-label="Send chat request"
+                          title={
+                            newRequestIsSelf
+                              ? 'You cannot send a request to yourself'
+                              : newRequestIsAlreadyConnected
+                                ? 'Already connected to this user'
+                                : newRequestHasPending
+                                  ? 'Request already sent to this user'
+                                  : 'Send chat request'
+                          }
+                          className="shrink-0 rounded-md border border-rose-700 bg-rose-700 p-1.5 text-rose-100 hover:bg-rose-800 disabled:cursor-not-allowed disabled:opacity-60"
+                        >
+                          {isSubmittingNewRequest ? (
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+                          ) : (
+                            <Send className="h-3.5 w-3.5" aria-hidden="true" />
+                          )}
+                        </button>
+                      </form>
+                      {(newRequestIsSelf || newRequestIsAlreadyConnected || newRequestHasPending) && (
+                        <p className="mb-2 text-xs text-rose-600">
+                          {newRequestIsSelf
+                            ? 'You cannot send a chat request to yourself.'
+                            : newRequestIsAlreadyConnected
+                              ? 'You are already connected to this user.'
+                              : 'You already have a pending request to this user.'}
+                        </p>
+                      )}
+                      </>
+                    )}
                     <ul className="flex flex-col gap-2">
                       {filteredChatRequests.map((request) => {
                         const other = getOtherUser(request)
@@ -811,7 +952,7 @@ export function AuthModuleView({
           )}
         </section>
 
-        <NoticeBanner notice={notice} />
+        <NoticeBanner notice={notice} onDismiss={onDismissNotice} />
       </div>
 
       {confirmUnblockUser && (
