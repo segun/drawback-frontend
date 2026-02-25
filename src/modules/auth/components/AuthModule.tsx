@@ -390,7 +390,8 @@ export function AuthModule() {
 
   useEffect(() => {
     const trimmed = searchQuery.trim()
-    if (!trimmed || !accessToken) {
+    const normalized = trimmed.startsWith('@') ? trimmed.slice(1) : trimmed
+    if (!trimmed || normalized.length < 2 || !accessToken) {
       setSearchResults([])
       setIsSearching(false)
       return

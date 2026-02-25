@@ -1,4 +1,4 @@
-import { useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useEffect, useMemo, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import { Ban, Bookmark, Brush, Eraser, LogOut, Menu, PenLine, Plus, RefreshCw, Save, SaveAll, Send, ShieldOff, SlidersHorizontal, Trash2, User, X } from 'lucide-react'
 import { NoticeBanner, type Notice } from '../../../common/components/NoticeBanner'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../constants'
@@ -199,6 +199,29 @@ export function AuthModuleView({
   const [isSubmittingNewRequest, setIsSubmittingNewRequest] = useState(false)
   const [showEmotePicker, setShowEmotePicker] = useState(false)
   const [showBrushSettings, setShowBrushSettings] = useState(false)
+
+  const presetColors = useMemo(() => [
+    '#e11d48',
+    '#fb7185',
+    '#f59e0b',
+    '#10b981',
+    '#0ea5e9',
+  ], [])
+
+  useEffect(() => {
+    if (!showBrushSettings) {
+      return undefined
+    }
+
+    const handleOutsideClick = () => {
+      setShowBrushSettings(false)
+    }
+
+    document.addEventListener('click', handleOutsideClick)
+    return () => {
+      document.removeEventListener('click', handleOutsideClick)
+    }
+  }, [showBrushSettings])
 
   const handleOpenChat = (chatRequestId: string) => {
     openChat(chatRequestId)
@@ -463,6 +486,10 @@ export function AuthModuleView({
                   </button>
                 </div>
                 <div className="border-b border-rose-300 p-3">
+                  <p className="text-sm font-semibold text-rose-700">
+                    Welcome {profile?.displayName ?? 'there'}
+                  </p>
+                  <hr className="my-3 border-rose-300" />
                   <input
                     type="text"
                     value={searchQuery}
@@ -1007,7 +1034,10 @@ export function AuthModuleView({
                                   <div className="relative">
                                     <button
                                       type="button"
-                                      onClick={() => setShowBrushSettings((v) => !v)}
+                                      onClick={(event) => {
+                                        event.stopPropagation()
+                                        setShowBrushSettings((v) => !v)
+                                      }}
                                       title="Brush settings"
                                       aria-label="Brush settings"
                                       className="flex h-9 w-9 items-center justify-center rounded-full border border-rose-400 bg-rose-100 text-rose-700 hover:bg-rose-200"
@@ -1015,7 +1045,10 @@ export function AuthModuleView({
                                       <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
                                     </button>
                                     {showBrushSettings && (
-                                      <div className="absolute bottom-full right-0 z-30 mb-1 w-52 rounded-lg border border-rose-300 bg-white p-3 shadow-xl">
+                                      <div
+                                        className="absolute bottom-full right-0 z-30 mb-1 w-56 rounded-lg border border-rose-300 bg-white p-3 shadow-xl"
+                                        onClick={(event) => event.stopPropagation()}
+                                      >
                                         <div className="mb-2 text-xs font-semibold text-rose-700">Brush</div>
                                         <div className="mb-3 flex flex-col gap-1">
                                           <button
@@ -1041,6 +1074,7 @@ export function AuthModuleView({
                                             Brush
                                           </button>
                                         </div>
+                                        <hr className="my-2 border-rose-200" />
                                         <div className="mb-1 text-xs font-semibold text-rose-700">Stroke</div>
                                         <div className="flex items-center gap-2">
                                           <input
@@ -1057,31 +1091,57 @@ export function AuthModuleView({
                                           />
                                           <span className="w-6 text-right text-xs font-semibold text-rose-700">{drawWidth}</span>
                                         </div>
+                                        <hr className="my-2 border-rose-200" />
+                                        <div className="flex flex-col gap-2">
+                                          <div className="flex items-center justify-between gap-3">
+                                            <span className="text-xs font-medium text-rose-700">Eraser</span>
+                                            <button
+                                              type="button"
+                                              onClick={() => setDrawColor('eraser')}
+                                              title="Eraser"
+                                              aria-label="Eraser tool"
+                                              style={{
+                                                borderColor: drawColor === 'eraser' ? '#15803d' : '#86efac',
+                                                boxShadow: drawColor === 'eraser' ? '0 0 0 2px #22c55e' : undefined,
+                                              }}
+                                              className={`flex h-8 w-8 items-center justify-center rounded-full border-2 bg-green-100 transition-transform ${drawColor === 'eraser' ? 'scale-110' : 'hover:scale-105'}`}
+                                            >
+                                              <Eraser className="h-3.5 w-3.5 text-green-700" aria-hidden="true" />
+                                            </button>
+                                          </div>
+                                          <hr className="border-rose-200" />
+                                          <div className="text-xs font-semibold text-rose-700">Color</div>
+                                          <div className="flex flex-wrap items-center gap-2">
+                                            {presetColors.map((color) => (
+                                              <button
+                                                key={color}
+                                                type="button"
+                                                onClick={() => setDrawColor(color)}
+                                                className="h-8 w-8 rounded-full border-2 transition-transform hover:scale-105"
+                                                style={{
+                                                  backgroundColor: color,
+                                                  borderColor: drawColor === color ? '#be123c' : '#fda4af',
+                                                  boxShadow: drawColor === color ? '0 0 0 2px #fb7185' : undefined,
+                                                }}
+                                                aria-label={`Select color ${color}`}
+                                                title="Select color"
+                                              />
+                                            ))}
+                                          </div>
+                                          <hr className="border-rose-200" />
+                                          <label className="flex items-center justify-between gap-3 text-xs text-rose-700">
+                                            <span className="font-semibold">Custom color</span>
+                                            <input
+                                              type="color"
+                                              value={drawColor === 'eraser' ? '#000000' : drawColor}
+                                              onChange={(event) => setDrawColor(event.target.value)}
+                                              className="h-8 w-10 cursor-pointer rounded border border-rose-300 p-0"
+                                            />
+                                          </label>
+                                        </div>
                                       </div>
                                     )}
                                   </div>
-                                  <button
-                                    type="button"
-                                    onClick={() => setDrawColor('eraser')}
-                                    title="Eraser"
-                                    aria-label="Eraser tool"
-                                    style={{
-                                      borderColor: drawColor === 'eraser' ? '#15803d' : '#86efac',
-                                      boxShadow: drawColor === 'eraser' ? '0 0 0 2px #22c55e' : undefined,
-                                    }}
-                                    className={`flex h-9 w-9 items-center justify-center rounded-full border-2 bg-green-100 transition-transform ${drawColor === 'eraser' ? 'scale-125' : 'hover:scale-110'}`}
-                                  >
-                                    <Eraser className="h-4 w-4 text-green-700" aria-hidden="true" />
-                                  </button>
-                                  <label className="cursor-pointer" title="Custom color" aria-label="Custom drawing color">
-                                    <span className="sr-only">Custom color</span>
-                                    <input
-                                      type="color"
-                                      value={drawColor === 'eraser' ? '#000000' : drawColor}
-                                      onChange={(event) => setDrawColor(event.target.value)}
-                                      className="h-8 w-8 cursor-pointer rounded border border-rose-300 p-0"
-                                    />
-                                  </label>
                                 </div>
                             </div>
                               <canvas
