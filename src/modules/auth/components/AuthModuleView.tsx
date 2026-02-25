@@ -91,7 +91,10 @@ type AuthModuleViewProps = {
   stopLocalDrawing: () => void
   drawColor: string
   setDrawColor: (color: string) => void
-  presetColors: string[]
+  activeEmotes: Array<{ id: string; emoji: string; x: number }>
+  activeRemoteEmotes: Array<{ id: string; emoji: string; x: number }>
+  sendEmote: (emoji: string) => void
+  presetEmotes: string[]
 
   notice: Notice | null
   onDismissNotice: () => void
@@ -172,7 +175,10 @@ export function AuthModuleView({
   stopLocalDrawing,
   drawColor,
   setDrawColor,
-  presetColors,
+  activeEmotes,
+  activeRemoteEmotes,
+  sendEmote,
+  presetEmotes,
   notice,
   onDismissNotice,
 }: AuthModuleViewProps) {
@@ -183,6 +189,7 @@ export function AuthModuleView({
   const [showNewRequestForm, setShowNewRequestForm] = useState(false)
   const [newRequestDisplayName, setNewRequestDisplayName] = useState('@')
   const [isSubmittingNewRequest, setIsSubmittingNewRequest] = useState(false)
+  const [showEmotePicker, setShowEmotePicker] = useState(false)
 
   const handleOpenChat = (chatRequestId: string) => {
     openChat(chatRequestId)
@@ -900,47 +907,94 @@ export function AuthModuleView({
                           </div>
                         )}
 
-                        <div className="grid min-h-0 flex-1 gap-3 overflow-hidden grid-rows-2 landscape:max-lg:flex-none landscape:max-lg:overflow-visible landscape:max-lg:grid-rows-none landscape:max-lg:min-h-[500px]">
-                          <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
-                            <canvas ref={remoteCanvasRef} className="h-full min-h-0 w-full rounded-md border border-rose-300 bg-rose-50 cursor-not-allowed landscape:max-lg:min-h-[200px]" />
-                          </div>
-                          <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
-                            <div className="mb-2 flex flex-wrap items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={clearLocalCanvasAndNotify}
-                                disabled={joinedChatRequestId !== selectedChat.id || !peerPresent}
-                                className="rounded-md border border-red-700 bg-red-600 p-1 text-white hover:bg-red-700 active:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
-                                title="Clear canvas"
-                                aria-label="Clear canvas"
-                              >
-                                <Eraser className="h-5 w-5" aria-hidden="true" />
-                              </button>
-                              {!savedRequestIdSet.has(selectedChat.id) && (
+                        <div className="relative min-h-0 flex-1 flex flex-col overflow-hidden landscape:max-lg:flex-none landscape:max-lg:overflow-visible">
+                          <div className="grid min-h-0 flex-1 gap-3 overflow-hidden grid-rows-2 landscape:max-lg:flex-none landscape:max-lg:overflow-visible landscape:max-lg:grid-rows-none landscape:max-lg:min-h-[500px]">
+                            <div className="relative flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
+                              <canvas ref={remoteCanvasRef} className="h-full min-h-0 w-full rounded-md border border-rose-300 bg-rose-50 cursor-not-allowed landscape:max-lg:min-h-[200px]" />
+                              <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+                                {activeRemoteEmotes.map((emote) => (
+                                  <span
+                                    key={emote.id}
+                                    className="emote-float absolute text-5xl"
+                                    style={{ left: `${emote.x}%`, bottom: '15%' }}
+                                  >
+                                    {emote.emoji}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
+                              <div className="mb-2 flex flex-wrap items-center gap-1">
                                 <button
                                   type="button"
-                                  onClick={() => void saveAcceptedChat(selectedChat.id)}
-                                  disabled={activeActionKey === `save-chat:${selectedChat.id}`}
-                                  className="rounded-md border border-rose-700 bg-rose-700 p-1 text-white hover:bg-rose-800 active:bg-rose-900 disabled:cursor-not-allowed disabled:opacity-70"
-                                  title="Save chat"
-                                  aria-label="Save chat"
+                                  onClick={clearLocalCanvasAndNotify}
+                                  disabled={joinedChatRequestId !== selectedChat.id || !peerPresent}
+                                  className="rounded-md border border-red-700 bg-red-600 p-1 text-white hover:bg-red-700 active:bg-red-800 disabled:cursor-not-allowed disabled:opacity-60"
+                                  title="Clear canvas"
+                                  aria-label="Clear canvas"
                                 >
-                                  <Save className="h-5 w-5" aria-hidden="true" />
+                                  <Eraser className="h-5 w-5" aria-hidden="true" />
                                 </button>
-                              )}
-                              {(showReconnectButton || isReconnecting) && (
-                                <button
-                                  type="button"
-                                  onClick={reconnectToRoom}
-                                  disabled={isReconnecting}
-                                  className="rounded-md border border-amber-600 bg-amber-500 p-1 text-white hover:bg-amber-600 active:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
-                                  title="Reconnect to room"
-                                  aria-label="Reconnect to room"
-                                >
-                                  <RefreshCw className={`h-5 w-5 ${isReconnecting ? 'animate-spin' : ''}`} aria-hidden="true" />
-                                </button>
-                              )}                              
-                              <div className="ml-auto flex flex-wrap items-center gap-1">
+                                {!savedRequestIdSet.has(selectedChat.id) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => void saveAcceptedChat(selectedChat.id)}
+                                    disabled={activeActionKey === `save-chat:${selectedChat.id}`}
+                                    className="rounded-md border border-rose-700 bg-rose-700 p-1 text-white hover:bg-rose-800 active:bg-rose-900 disabled:cursor-not-allowed disabled:opacity-70"
+                                    title="Save chat"
+                                    aria-label="Save chat"
+                                  >
+                                    <Save className="h-5 w-5" aria-hidden="true" />
+                                  </button>
+                                )}
+                                {(showReconnectButton || isReconnecting) && (
+                                  <button
+                                    type="button"
+                                    onClick={reconnectToRoom}
+                                    disabled={isReconnecting}
+                                    className="rounded-md border border-amber-600 bg-amber-500 p-1 text-white hover:bg-amber-600 active:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                    title="Reconnect to room"
+                                    aria-label="Reconnect to room"
+                                  >
+                                    <RefreshCw className={`h-5 w-5 ${isReconnecting ? 'animate-spin' : ''}`} aria-hidden="true" />
+                                  </button>
+                                )}
+                                <div className="relative">
+                                  <button
+                                    type="button"
+                                    onClick={() => setShowEmotePicker((v) => !v)}
+                                    disabled={joinedChatRequestId !== selectedChat.id || !peerPresent}
+                                    className="rounded-md border border-rose-400 bg-rose-100 p-1 text-xl leading-none hover:bg-rose-200 active:bg-rose-300 disabled:cursor-not-allowed disabled:opacity-60"
+                                    title="Send emoticon"
+                                    aria-label="Send emoticon"
+                                  >
+                                    😊
+                                  </button>
+                                  {showEmotePicker && (
+                                    <div className="absolute bottom-full left-0 z-30 mb-1 w-[min(90vw,26rem)] rounded-lg border border-rose-300 bg-white p-3 shadow-xl md:w-[28rem]">
+                                      <div className="overflow-x-auto">
+                                        <div className="grid auto-cols-max grid-flow-col grid-rows-4 gap-2 pb-1">
+                                          {presetEmotes.map((emoji) => (
+                                            <button
+                                              key={emoji}
+                                              type="button"
+                                              onClick={() => {
+                                                sendEmote(emoji)
+                                                setShowEmotePicker(false)
+                                              }}
+                                              className="cursor-pointer rounded-lg p-2 text-3xl hover:bg-rose-100 active:bg-rose-200 md:text-2xl"
+                                              title={emoji}
+                                              aria-label={`Send ${emoji}`}
+                                            >
+                                              {emoji}
+                                            </button>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="ml-auto flex flex-wrap items-center gap-1">
                                 <button
                                   type="button"
                                   onClick={() => setDrawColor('eraser')}
@@ -954,33 +1008,18 @@ export function AuthModuleView({
                                 >
                                   <Eraser className="h-4 w-4 text-green-700" aria-hidden="true" />
                                 </button>
-                                {presetColors.map((color) => (
-                                  <button
-                                    key={color}
-                                    type="button"
-                                    onClick={() => setDrawColor(color)}
-                                    title={color}
-                                    aria-label={`Pick color ${color}`}
-                                    style={{
-                                      background: color,
-                                      borderColor: drawColor === color ? '#9f1239' : color === '#ffffff' ? '#cbd5e1' : color,
-                                      boxShadow: drawColor === color ? '0 0 0 2px #f43f5e' : undefined,
-                                    }}
-                                    className={`h-5 w-5 rounded-full border-2 transition-transform ${drawColor === color ? 'scale-125' : 'hover:scale-110'}`}
-                                  />
-                                ))}
                                 <label className="cursor-pointer" title="Custom color" aria-label="Custom drawing color">
                                   <span className="sr-only">Custom color</span>
                                   <input
                                     type="color"
                                     value={drawColor === 'eraser' ? '#000000' : drawColor}
                                     onChange={(event) => setDrawColor(event.target.value)}
-                                    className="h-5 w-5 cursor-pointer rounded border border-rose-300 p-0"
+                                    className="h-8 w-8 cursor-pointer rounded border border-rose-300 p-0"
                                   />
                                 </label>
                               </div>
                             </div>
-                            <canvas
+                              <canvas
                               ref={localCanvasRef}
                               onPointerDown={handleLocalCanvasPointerDown}
                               onPointerMove={handleLocalCanvasPointerMove}
@@ -991,6 +1030,18 @@ export function AuthModuleView({
                                 !peerPresent ? 'cursor-not-allowed opacity-50' : ''
                               }`}
                             />
+                            </div>
+                          </div>
+                          <div className="pointer-events-none absolute inset-0 z-20 overflow-hidden">
+                            {activeEmotes.map((emote) => (
+                              <span
+                                key={emote.id}
+                                className="emote-float absolute text-5xl"
+                                style={{ left: `${emote.x}%`, bottom: '15%' }}
+                              >
+                                {emote.emoji}
+                              </span>
+                            ))}
                           </div>
                         </div>
                       </div>

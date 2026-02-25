@@ -39,6 +39,12 @@ type DrawClearPayload = {
   userId: string
 }
 
+type DrawEmotePayload = {
+  requestId: string
+  emoji: string
+  userId: string
+}
+
 type DrawPeerJoinedPayload = {
   userId: string
 }
@@ -62,6 +68,7 @@ type ServerToClientEvents = {
   'draw.peer.waiting': (payload: DrawPeerWaitingPayload) => void
   'draw.stroke': (payload: DrawStrokePayload) => void
   'draw.clear': (payload: DrawClearPayload) => void
+  'draw.emote': (payload: DrawEmotePayload) => void
   error: (payload: SocketErrorPayload) => void
 }
 
@@ -70,6 +77,7 @@ type ClientToServerEvents = {
   'draw.leave': () => void
   'draw.stroke': (payload: DrawStrokePayload) => void
   'draw.clear': (payload: DrawClearPayload) => void
+  'draw.emote': (payload: DrawEmotePayload) => void
 }
 
 type DrawbackSocket = Socket<ServerToClientEvents, ClientToServerEvents>
@@ -152,20 +160,31 @@ export const emitDrawLeave = (): void => {
   socket.emit('draw.leave')
 }
 
-export const emitDrawStroke = (requestId: string, stroke: unknown): void => {
+export const emitDrawStroke = (requestId: string, stroke: unknown, userId: string): void => {
   if (!socket || !requestId) {
     return
   }
 
-  socket.emit('draw.stroke', { requestId, stroke })
+  console.log('Emitting draw.stroke', { requestId, stroke, userId })
+  socket.emit('draw.stroke', { requestId, stroke, userId })
 }
 
-export const emitDrawClear = (requestId: string): void => {
+export const emitDrawClear = (requestId: string, userId: string): void => {
   if (!socket || !requestId) {
     return
   }
 
-  socket.emit('draw.clear', { requestId })
+  console.log('Emitting draw.clear', { requestId, userId })
+  socket.emit('draw.clear', { requestId, userId })
+}
+
+export const emitDrawEmote = (requestId: string, emoji: string, userId: string): void => {
+  if (!socket || !requestId) {
+    return
+  }
+
+  console.log('Emitting draw.emote', { requestId, emoji, userId })
+  socket.emit('draw.emote', { requestId, emoji, userId })
 }
 
 export const disconnectDrawbackSocket = (): void => {

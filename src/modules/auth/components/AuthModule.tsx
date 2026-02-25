@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import { ApiError } from '../../../common/api/apiError'
 import { type Notice } from '../../../common/components/NoticeBanner'
-import { disconnectDrawbackSocket, emitChatJoin, emitDrawClear, emitDrawLeave, emitDrawStroke, getOrCreateDrawbackSocket } from '../../../common/realtime/drawbackSocket'
+import { disconnectDrawbackSocket, emitChatJoin, emitDrawClear, emitDrawEmote, emitDrawLeave, emitDrawStroke, getOrCreateDrawbackSocket } from '../../../common/realtime/drawbackSocket'
 import { createAuthApi } from '../api/authApi'
 import { type BlockedUser, type ChatRequest, createSocialApi, type SavedChat, type UserMode, type UserProfile } from '../api/socialApi'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../constants'
@@ -27,9 +27,13 @@ type DrawSegmentStroke = {
 const DRAW_WIDTH = 2
 const ERASER_WIDTH = 40
 
-const PRESET_COLORS = [
-  '#000000',
-  '#be123c',
+const PRESET_EMOTES = [
+  '❤️', '😂', '🔥', '👏', '😮', '💡', '🎉', '💯', '👍', '🥳',
+  '😊', '😍', '🤗', '😎', '🤔', '😇', '🥺', '😢', '😭', '😡',
+  '🤩', '😱', '🤯', '😴', '🤓', '🥰', '😘', '😜', '😋', '🤪',
+  '🙌', '👋', '🤝', '💪', '🙏', '✨', '⭐', '🌟', '💫', '☀️',
+  '🌈', '🎈', '🎊', '🎁', '🏆', '🥇', '💝', '💖', '💗', '💓',
+  '✅', '❌', '⚡', '🚀', '🌺', '🌸', '🌻', '🌹', '🍕', '🍰'
 ]
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
@@ -107,6 +111,8 @@ export function AuthModule() {
   const remoteCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const localLastPointRef = useRef<NormalizedPoint | null>(null)
   const [drawColor, setDrawColor] = useState('#be123c')
+  const [activeEmotes, setActiveEmotes] = useState<Array<{ id: string; emoji: string; x: number }>>([])
+  const [activeRemoteEmotes, setActiveRemoteEmotes] = useState<Array<{ id: string; emoji: string; x: number }>>([])
 
   const showNotice = (text: string, type: Notice['type'] = 'info'): void => {
     setNotice({ text, type })
@@ -656,7 +662,7 @@ export function AuthModule() {
     }
 
     drawSegmentOnCanvas(localCanvasRef.current, stroke)
-    emitDrawStroke(selectedChatRequestId, stroke)
+    emitDrawStroke(selectedChatRequestId, stroke, profile?.id || '')
     localLastPointRef.current = nextPoint
   }
 
@@ -670,7 +676,7 @@ export function AuthModule() {
     }
 
     clearCanvas(localCanvasRef.current)
-    emitDrawClear(selectedChatRequestId)
+    emitDrawClear(selectedChatRequestId, profile?.id || '')
   }
 
   const reconnectToRoom = (): void => {
@@ -682,6 +688,23 @@ export function AuthModule() {
     setShowReconnectButton(false)
     emitChatJoin(selectedChatRequestId)
     setTimeout(() => setIsReconnecting(false), 3000)
+  }
+
+  const showEmote = (emoji: string): void => {
+    const id = `${Date.now()}-${Math.random()}`
+    const x = 10 + Math.random() * 75
+    setActiveEmotes((previous) => [...previous, { id, emoji, x }])
+    setTimeout(() => {
+      setActiveEmotes((previous) => previous.filter((e) => e.id !== id))
+    }, 4200)
+  }
+
+  const sendEmote = (emoji: string): void => {
+    if (!selectedChatRequestId || joinedChatRequestId !== selectedChatRequestId || !peerPresent) {
+      return
+    }
+    emitDrawEmote(selectedChatRequestId, emoji, profile?.id || '')
+    showEmote(emoji)
   }
 
   const cancelRequest = async (chatRequestId: string): Promise<void> => {
@@ -838,7 +861,7 @@ export function AuthModule() {
       }
     }
 
-    const onDrawStroke = (payload: { requestId: string; stroke: unknown; userId?: string }) => {
+    const onDrawStroke = (payload: { requestId: string; stroke: unknown; userId: string }) => {
       if (!isDrawSegmentStroke(payload.stroke)) {
         return
       }
@@ -855,7 +878,7 @@ export function AuthModule() {
       drawSegmentOnCanvas(remoteCanvasRef.current, payload.stroke)
     }
 
-    const onDrawClear = (payload: { requestId: string; userId?: string }) => {
+    const onDrawClear = (payload: { requestId: string; userId: string }) => {
       if (payload.requestId !== selectedChatRequestIdRef.current) {
         return
       }
@@ -887,7 +910,30 @@ export function AuthModule() {
       })
     }
 
+    const onDrawEmote = (payload: { requestId: string; emoji: string, userId: string}) => {
+      if (payload.requestId !== selectedChatRequestIdRef.current) {
+        return
+      }
+
+      if (!peerPresentRef.current && payload.userId) {
+        peerPresentRef.current = true
+        setPeerPresent(true)
+      }      
+      const id = `${Date.now()}-${Math.random()}`
+      const x = 10 + Math.random() * 75
+      setActiveRemoteEmotes((previous) => [...previous, { id, emoji: payload.emoji, x }])
+      setTimeout(() => {
+        setActiveRemoteEmotes((previous) => previous.filter((e) => e.id !== id))
+      }, 4200)
+    }
+
     const onSocketError = (payload: { message: string; status?: number }) => {
+      if (payload.status === 403 && /not in a room/i.test(payload.message)) {
+        peerPresentRef.current = false
+        setPeerPresent(false)
+        showNotice('The other user has left the room.', 'error')
+        return
+      }
       const statusPrefix = payload.status ? `[WS ${payload.status}] ` : ''
       showNotice(`${statusPrefix}${payload.message}`, 'error')
     }
@@ -913,6 +959,7 @@ export function AuthModule() {
     socket.on('draw.peer.waiting', onDrawPeerWaiting)
     socket.on('draw.stroke', onDrawStroke)
     socket.on('draw.clear', onDrawClear)
+    socket.on('draw.emote', onDrawEmote)
     socket.on('error', onSocketError)
     socket.on('connect_error', onConnectError)
 
@@ -925,6 +972,7 @@ export function AuthModule() {
       socket.off('draw.peer.waiting', onDrawPeerWaiting)
       socket.off('draw.stroke', onDrawStroke)
       socket.off('draw.clear', onDrawClear)
+      socket.off('draw.emote', onDrawEmote)
       socket.off('error', onSocketError)
       socket.off('connect_error', onConnectError)
     }
@@ -1081,7 +1129,10 @@ export function AuthModule() {
       stopLocalDrawing={stopLocalDrawing}
       drawColor={drawColor}
       setDrawColor={setDrawColor}
-      presetColors={PRESET_COLORS}
+      activeEmotes={activeEmotes}
+      activeRemoteEmotes={activeRemoteEmotes}
+      sendEmote={sendEmote}
+      presetEmotes={PRESET_EMOTES}
       notice={notice}
       onDismissNotice={() => setNotice(null)}
     />

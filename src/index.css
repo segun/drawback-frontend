@@ -18,3 +18,24 @@ body {
   background: #fff1f2;
   color: #881337;
 }
+
+@keyframes emote-float {
+  0% {
+    opacity: 1;
+    transform: translateY(0) scale(0.4);
+  }
+  12% {
+    opacity: 1;
+    transform: translateY(-24px) scale(1.5);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-220px) scale(0.9);
+  }
+}
+
+.emote-float {
+  animation: emote-float 4s ease-out forwards;
+  pointer-events: none;
+  user-select: none;
+}
