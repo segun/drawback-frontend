@@ -31,10 +31,12 @@ type SocketErrorPayload = {
 type DrawStrokePayload = {
   requestId: string
   stroke: unknown
+  userId: string
 }
 
 type DrawClearPayload = {
   requestId: string
+  userId: string
 }
 
 type DrawPeerJoinedPayload = {

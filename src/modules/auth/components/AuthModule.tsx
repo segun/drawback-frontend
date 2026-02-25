@@ -102,6 +102,7 @@ export function AuthModule() {
   const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([])
   const loadDashboardDataRef = useRef<(showLoading?: boolean) => Promise<void>>(async () => {})
   const selectedChatRequestIdRef = useRef<string | null>(null)
+  const peerPresentRef = useRef<boolean>(false)
   const localCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const remoteCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const localLastPointRef = useRef<NormalizedPoint | null>(null)
@@ -774,6 +775,7 @@ export function AuthModule() {
   useEffect(() => {
     localLastPointRef.current = null
     setJoinedChatRequestId(null)
+    peerPresentRef.current = false
     setPeerPresent(false)
     clearCanvas(localCanvasRef.current)
     clearCanvas(remoteCanvasRef.current)
@@ -831,11 +833,12 @@ export function AuthModule() {
       setJoinedChatRequestId(payload.requestId)
       openChat(payload.requestId)
       if (payload.peers.length > 0) {
+        peerPresentRef.current = true
         setPeerPresent(true)
       }
     }
 
-    const onDrawStroke = (payload: { requestId: string; stroke: unknown }) => {
+    const onDrawStroke = (payload: { requestId: string; stroke: unknown; userId?: string }) => {
       if (!isDrawSegmentStroke(payload.stroke)) {
         return
       }
@@ -844,22 +847,34 @@ export function AuthModule() {
         return
       }
 
+      if (!peerPresentRef.current && payload.userId) {
+        peerPresentRef.current = true
+        setPeerPresent(true)
+      }
+
       drawSegmentOnCanvas(remoteCanvasRef.current, payload.stroke)
     }
 
-    const onDrawClear = (payload: { requestId: string }) => {
+    const onDrawClear = (payload: { requestId: string; userId?: string }) => {
       if (payload.requestId !== selectedChatRequestIdRef.current) {
         return
+      }
+
+      if (!peerPresentRef.current && payload.userId) {
+        peerPresentRef.current = true
+        setPeerPresent(true)
       }
 
       clearCanvas(remoteCanvasRef.current)
     }
 
     const onDrawPeerJoined = () => {
+      peerPresentRef.current = true
       setPeerPresent(true)
     }
 
     const onDrawPeerLeft = () => {
+      peerPresentRef.current = false
       setPeerPresent(false)
     }
 

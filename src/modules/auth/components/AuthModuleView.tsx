@@ -269,6 +269,7 @@ export function AuthModuleView({
           )}
 
           {!accessToken && tab === 'register' && (
+            <>
             <form className="flex flex-col gap-3" onSubmit={register}>
               <label className="flex flex-col gap-1 text-sm">
                 Email
@@ -352,6 +353,20 @@ export function AuthModuleView({
                 {isSubmitting ? 'Registering…' : 'Create account'}
               </button>
             </form>
+
+            <div className="mt-6">
+              <p className="mb-2 text-sm font-medium text-rose-700">How it works</p>
+              <video
+                src="/videos/how.mov"
+                controls
+                autoPlay
+                loop
+                muted
+                playsInline
+                className="w-full rounded-md border border-rose-300"
+              />
+            </div>
+            </>
           )}
 
           {!accessToken && tab === 'login' && (
