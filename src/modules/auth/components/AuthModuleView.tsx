@@ -749,7 +749,7 @@ export function AuthModuleView({
                     <div className="group relative">
                       <button
                         type="button"
-                        onClick={() => setCenterView('profile')}
+                        onClick={() => { setCenterView('profile'); setIsSidebarOpen(false) }}
                         aria-label="Profile"
                         title="Profile"
                         className="rounded-md border border-rose-700 bg-rose-700 p-2 text-rose-100 hover:bg-rose-800"
