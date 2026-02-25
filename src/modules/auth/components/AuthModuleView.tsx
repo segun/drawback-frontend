@@ -331,22 +331,24 @@ export function AuthModuleView({
         <main
             className={`bg-rose-0 text-rose-800 ${accessToken ? "flex h-dvh flex-col overflow-hidden landscape:max-lg:h-auto landscape:max-lg:overflow-y-auto" : "min-h-dvh"}`}
         >
-            <Header 
-              isLoggedIn={!!accessToken} 
-              onMenuClick={() => setIsSidebarOpen(true)} 
-              onLogout={logout}
-              onProfileClick={accessToken ? () => {
-                setCenterView("profile");
-                setIsSidebarOpen(false);
-              } : undefined}
+            <Header
+                isLoggedIn={!!accessToken}
+                onMenuClick={() => setIsSidebarOpen(true)}
+                onLogout={logout}
+                onProfileClick={
+                    accessToken
+                        ? () => {
+                              setCenterView("profile");
+                              setIsSidebarOpen(false);
+                          }
+                        : undefined
+                }
             />
 
             <div
                 className={`mx-auto px-4 ${accessToken ? "flex-1 min-h-0 max-w-screen-2xl w-full overflow-hidden pb-3 pt-2 landscape:max-lg:flex-none landscape:max-lg:overflow-visible" : "max-w-xl pb-8"}`}
             >
-                <section
-                    className="w-full h-full min-h-0 landscape:max-lg:h-auto"
-                >
+                <section className="w-full h-full min-h-0 landscape:max-lg:h-auto">
                     {accessToken && (
                         <div className="relative mt-2 grid h-[calc(100%-0.5rem)] w-full gap-4 overflow-hidden lg:grid-cols-[20rem_minmax(0,1fr)] landscape:max-lg:h-auto landscape:max-lg:overflow-visible">
                             {isSidebarOpen && (

@@ -1,14 +1,15 @@
 import { useLocation, useSearch } from 'wouter'
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, type FormEvent } from 'react'
 import { Header } from '../components/common/Header'
 import { NoticeBanner, type Notice } from '../common/components/NoticeBanner'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../modules/auth/constants'
+import type { ResetPasswordResponse } from '../modules/auth/api/authApi'
 
 type ResetPasswordPageProps = {
   notice: Notice | null
   onDismissNotice: () => void
   setNotice: (notice: Notice) => void
-  onResetPassword: (token: string, email: string, password: string) => Promise<void>
+  onResetPassword: (token: string, email: string, password: string) => Promise<ResetPasswordResponse>
   setLoginEmail: (email: string) => void
 }
 
@@ -27,24 +28,9 @@ export function ResetPasswordPage({
     return search.get('token')
   })
 
-  const [resultStatus, setResultStatus] = useState<'success' | 'error' | null>(() => {
-    const search = new URLSearchParams(searchParams)
-    const status = search.get('status')
-    if (status === 'success' || status === 'error') {
-      return status
-    }
-    return null
-  })
-
-  const [resultMessage, setResultMessage] = useState<string | null>(() => {
-    const search = new URLSearchParams(searchParams)
-    return search.get('message')
-  })
-
-  const [resultEmail, setResultEmail] = useState<string | null>(() => {
-    const search = new URLSearchParams(searchParams)
-    return search.get('email')
-  })
+  const [resultStatus, setResultStatus] = useState<'success' | 'error' | null>(null)
+  const [resultMessage, setResultMessage] = useState<string | null>(null)
+  const [resultEmail, setResultEmail] = useState<string | null>(null)
 
   const [email, setEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -82,18 +68,22 @@ export function ResetPasswordPage({
 
     setIsSubmitting(true)
     try {
-      await onResetPassword(token, trimmedEmail, newPassword)
-      setLocation(`/reset-password?status=success&email=${encodeURIComponent(trimmedEmail)}`)
+      const result = await onResetPassword(token, trimmedEmail, newPassword)
+      setResultStatus(result.status)
+      setResultMessage(result.message)
+      setResultEmail(result.email ?? trimmedEmail)
     } catch (error: any) {
       const message = error?.message || 'An error occurred while resetting your password.'
-      setLocation(`/reset-password?status=error&message=${encodeURIComponent(message)}`)
+      setResultStatus('error')
+      setResultMessage(message)
+      setResultEmail(null)
     } finally {
       setIsSubmitting(false)
     }
   }
 
   const handleGoToLogin = () => {
-    setLoginEmail(resultEmail || '')
+    setLoginEmail(resultEmail || email)
     setLocation('/login')
   }
 
@@ -161,8 +151,7 @@ export function ResetPasswordPage({
                       Password Reset Successful
                     </h2>
                     <p className="text-sm text-green-600">
-                      Your password has been reset successfully. You can now log in with your new
-                      password.
+                      {resultMessage || 'Your password has been reset successfully. You can now log in with your new password.'}
                     </p>
                   </div>
                   <button

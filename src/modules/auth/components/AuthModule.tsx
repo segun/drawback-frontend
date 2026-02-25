@@ -1245,7 +1245,7 @@ export function AuthModule() {
         setNotice={setNotice}
         onResetPassword={async (token, email, password) => {
           try {
-            await authApi.resetPassword(token, password)
+            return await authApi.resetPassword(token, password)
           } catch (error) {
             throw new Error(mapErrorToMessage(error))
           }

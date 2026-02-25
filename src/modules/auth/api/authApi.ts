@@ -45,7 +45,9 @@ export type ResetPasswordPayload = {
 }
 
 export type ResetPasswordResponse = {
+  status: 'success' | 'error'
   message: string
+  email?: string
 }
 
 const normalizeDisplayName = (displayName: string): string => displayName.trim()
