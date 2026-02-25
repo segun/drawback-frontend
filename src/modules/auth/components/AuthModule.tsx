@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
+import { useLocation, useRoute, useSearch, Redirect } from 'wouter'
 import { ApiError } from '../../../common/api/apiError'
 import { type Notice } from '../../../common/components/NoticeBanner'
 import { disconnectDrawbackSocket, emitChatJoin, emitDrawClear, emitDrawEmote, emitDrawLeave, emitDrawStroke, getOrCreateDrawbackSocket } from '../../../common/realtime/drawbackSocket'
@@ -6,6 +7,9 @@ import { createAuthApi } from '../api/authApi'
 import { type BlockedUser, type ChatRequest, createSocialApi, type SavedChat, type UserMode, type UserProfile } from '../api/socialApi'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../constants'
 import { isValidDisplayName } from '../utils/displayName'
+import { RegisterPage } from '../../../pages/RegisterPage'
+import { LoginPage } from '../../../pages/LoginPage'
+import { ResetPasswordPage } from '../../../pages/ResetPasswordPage'
 import { AuthModuleView } from './AuthModuleView'
 
 type AuthTab = 'register' | 'login'
@@ -73,9 +77,14 @@ export function AuthModule() {
   const backendUrl = String(import.meta.env.VITE_BACKEND_URL ?? '').trim()
   const authApi = useMemo(() => createAuthApi(backendUrl), [backendUrl])
   const socialApi = useMemo(() => createSocialApi(authApi), [authApi])
-  const [isConfirmRoute] = useState<boolean>(() => typeof window !== 'undefined' && window.location.pathname === '/confirm')
+  const [location, setLocation] = useLocation()
+  const searchParams = useSearch()
+  const [isConfirmRoute] = useRoute('/confirm')
+  const [isResetPasswordRoute] = useRoute('/reset-password')
+  const [isRegisterRoute] = useRoute('/register')
+  const [isLoginRoute] = useRoute('/login')
+  const [isDashboardRoute] = useRoute('/dashboard')
 
-  const [tab, setTab] = useState<AuthTab>(() => (typeof window !== 'undefined' && window.location.pathname === '/confirm' ? 'login' : 'register'))
   const [registerEmail, setRegisterEmail] = useState('')
   const [registerPassword, setRegisterPassword] = useState('')
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('')
@@ -88,38 +97,27 @@ export function AuthModule() {
   const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false)
   const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
   const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      const search = new URLSearchParams(window.location.search)
-      return search.get('token')
-    }
-    return null
+    const search = new URLSearchParams(searchParams)
+    return search.get('token')
   })
   const [resetPasswordEmail, setResetPasswordEmail] = useState('')
   const [resetPasswordNewPassword, setResetPasswordNewPassword] = useState('')
   const [resetPasswordConfirmPassword, setResetPasswordConfirmPassword] = useState('')
   const [resetPasswordResultStatus, setResetPasswordResultStatus] = useState<'success' | 'error' | null>(() => {
-    if (typeof window !== 'undefined') {
-      const search = new URLSearchParams(window.location.search)
-      const status = search.get('status')
-      if (status === 'success' || status === 'error') {
-        return status
-      }
+    const search = new URLSearchParams(searchParams)
+    const status = search.get('status')
+    if (status === 'success' || status === 'error') {
+      return status
     }
     return null
   })
   const [resetPasswordResultMessage, setResetPasswordResultMessage] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      const search = new URLSearchParams(window.location.search)
-      return search.get('message')
-    }
-    return null
+    const search = new URLSearchParams(searchParams)
+    return search.get('message')
   })
   const [resetPasswordResultEmail, setResetPasswordResultEmail] = useState<string | null>(() => {
-    if (typeof window !== 'undefined') {
-      const search = new URLSearchParams(window.location.search)
-      return search.get('email')
-    }
-    return null
+    const search = new URLSearchParams(searchParams)
+    return search.get('email')
   })
 
   const [accessToken, setAccessToken] = useState<string | null>(() => authApi.getAccessToken())
@@ -460,9 +458,7 @@ export function AuthModule() {
       return
     }
 
-    setTab('login')
-
-    const query = new URLSearchParams(window.location.search)
+    const query = new URLSearchParams(searchParams)
     const status = query.get('status')
     const emailFromQuery = query.get('email')?.trim()
 
@@ -472,6 +468,7 @@ export function AuthModule() {
 
     if (status === 'success') {
       setNotice({ text: 'Email confirmed successfully. You can now log in.', type: 'success' })
+      setLocation('/login')
       return
     }
 
@@ -481,11 +478,13 @@ export function AuthModule() {
         text: reason || 'Invalid or expired activation token.',
         type: 'error',
       })
+      setLocation('/login')
       return
     }
 
     setNotice({ text: 'Please log in to continue.', type: 'info' })
-  }, [isConfirmRoute])
+    setLocation('/login')
+  }, [isConfirmRoute, searchParams, setLocation])
 
   const register = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()
@@ -519,7 +518,7 @@ export function AuthModule() {
       setRegisterPassword('')
       setRegisterConfirmPassword('')
       setDisplayNameAvailability('idle')
-      setTab('login')
+      setLocation('/login')
     } catch (error) {
       showNotice(mapErrorToMessage(error), 'error')
     } finally {
@@ -546,6 +545,7 @@ export function AuthModule() {
       setAccessToken(response.accessToken)
       setLoginPassword('')
       showNotice('Login successful. Welcome back.', 'success')
+      setLocation('/dashboard')
     } catch (error) {
       showNotice(mapErrorToMessage(error), 'error')
     } finally {
@@ -560,6 +560,7 @@ export function AuthModule() {
     setAccessToken(null)
     resetDashboardData()
     showNotice('You have been logged out.', 'info')
+    setLocation('/')
   }
 
   const handleForgotPassword = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
@@ -619,14 +620,10 @@ export function AuthModule() {
     setIsSubmitting(true)
     try {
       await authApi.resetPassword(resetPasswordToken, password)
-      if (typeof window !== 'undefined') {
-        window.location.href = `/reset-password?status=success&email=${encodeURIComponent(email)}`
-      }
+      setLocation(`/reset-password?status=success&email=${encodeURIComponent(email)}`)
     } catch (error) {
       const message = mapErrorToMessage(error)
-      if (typeof window !== 'undefined') {
-        window.location.href = `/reset-password?status=error&message=${encodeURIComponent(message)}`
-      }
+      setLocation(`/reset-password?status=error&message=${encodeURIComponent(message)}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -637,10 +634,7 @@ export function AuthModule() {
     setResetPasswordResultStatus(null)
     setResetPasswordResultMessage(null)
     setResetPasswordResultEmail(null)
-    if (typeof window !== 'undefined') {
-      window.history.replaceState({}, '', '/confirm')
-      setTab('login')
-    }
+    setLocation('/login')
   }
 
   useEffect(() => {
@@ -728,7 +722,7 @@ export function AuthModule() {
       authApi.logout()
       setAccessToken(null)
       resetDashboardData()
-      setTab('login')
+      setLocation('/login')
       showNotice('Your account has been deleted.', 'info')
     } catch (error) {
       showNotice(mapErrorToMessage(error), 'error')
@@ -1232,12 +1226,85 @@ export function AuthModule() {
     })
   }, [recentChats])
 
+  // Redirect to dashboard if logged in and on auth pages
+  if (accessToken && (isRegisterRoute || isLoginRoute)) {
+    return <Redirect to="/dashboard" />
+  }
+
+  // Redirect to login if not logged in and trying to access dashboard
+  if (!accessToken && isDashboardRoute) {
+    return <Redirect to="/login" />
+  }
+
+  // Handle reset password page
+  if (isResetPasswordRoute) {
+    return (
+      <ResetPasswordPage
+        notice={notice}
+        onDismissNotice={() => setNotice(null)}
+        setNotice={setNotice}
+        onResetPassword={async (token, email, password) => {
+          try {
+            await authApi.resetPassword(token, password)
+          } catch (error) {
+            throw new Error(mapErrorToMessage(error))
+          }
+        }}
+        setLoginEmail={setLoginEmail}
+      />
+    )
+  }
+
+  // Handle register page
+  if (isRegisterRoute && !accessToken) {
+    return (
+      <RegisterPage
+        email={registerEmail}
+        setEmail={setRegisterEmail}
+        password={registerPassword}
+        setPassword={setRegisterPassword}
+        confirmPassword={registerConfirmPassword}
+        setConfirmPassword={setRegisterConfirmPassword}
+        displayName={registerDisplayName}
+        setDisplayName={setRegisterDisplayName}
+        normalizeDisplayNameInput={normalizeRegisterDisplayNameInput}
+        displayNameAvailability={displayNameAvailability}
+        isSubmitting={isSubmitting}
+        onSubmit={register}
+        notice={notice}
+        onDismissNotice={() => setNotice(null)}
+      />
+    )
+  }
+
+  // Handle login page
+  if (isLoginRoute && !accessToken) {
+    return (
+      <LoginPage
+        email={loginEmail}
+        setEmail={setLoginEmail}
+        password={loginPassword}
+        setPassword={setLoginPassword}
+        isSubmitting={isSubmitting}
+        onSubmit={login}
+        showForgotPasswordModal={showForgotPasswordModal}
+        setShowForgotPasswordModal={setShowForgotPasswordModal}
+        forgotPasswordEmail={forgotPasswordEmail}
+        setForgotPasswordEmail={setForgotPasswordEmail}
+        onForgotPassword={handleForgotPassword}
+        notice={notice}
+        onDismissNotice={() => setNotice(null)}
+      />
+    )
+  }
+
+  // Render dashboard for logged-in users or default route
   return (
     <AuthModuleView
       accessToken={accessToken}
-      isConfirmRoute={isConfirmRoute}
-      tab={tab}
-      setTab={setTab}
+      isConfirmRoute={!!isConfirmRoute}
+      isResetPasswordRoute={!!isResetPasswordRoute}
+      navigateTo={setLocation}
       register={register}
       login={login}
       registerEmail={registerEmail}

@@ -4,7 +4,7 @@
 
 DrawkcaB is a real-time collaborative drawing chat app. Users register, confirm their email, log in, find other users, send chat requests, and draw together on a shared canvas over a Socket.IO connection.
 
-The frontend is a single-page React 19 app built with Vite, TypeScript, and Tailwind CSS v4. There is no routing library — routing is handled by reading `window.location.pathname` directly.
+The frontend is a single-page React 19 app built with Vite, TypeScript, and Tailwind CSS v4. Routing is handled with Wouter, a lightweight (~1.5KB) React Router alternative.
 
 ---
 
@@ -18,6 +18,7 @@ The frontend is a single-page React 19 app built with Vite, TypeScript, and Tail
 | Styling | Tailwind CSS v4 |
 | Icons | lucide-react |
 | Real-time | Socket.IO client v4 |
+| Routing | Wouter v3 |
 | Package manager | Yarn 1 |
 
 ---
@@ -26,9 +27,20 @@ The frontend is a single-page React 19 app built with Vite, TypeScript, and Tail
 
 ```
 src/
-  App.tsx                        # Root — renders <AuthModule />
+  App.tsx                        # Root — Router with Route/Switch for pages
   main.tsx                       # Entry point
   index.css                      # Global styles + Tailwind import
+  pages/
+    MainPage.tsx                 # "/" — Register/Login or Dashboard
+    ConfirmPage.tsx              # "/confirm" — Email confirmation
+    ResetPasswordPage.tsx        # "/reset-password" — Password reset
+  components/
+    auth/
+      RegisterForm.tsx           # Registration form component
+      LoginForm.tsx              # Login form component
+      ForgotPasswordModal.tsx    # Forgot password modal component
+    common/
+      Header.tsx                 # App header component
   common/
     api/
       apiError.ts                # ApiError class (status + message)
@@ -40,25 +52,25 @@ src/
       tokenStorage.ts            # JWT access-token helpers
   modules/
     auth/
-      constants.ts               # Shared constants (e.g. PRESET_COLORS)
+      constants.ts               # Shared constants
       api/
         authApi.ts               # Auth REST calls (register, login, etc.)
         socialApi.ts             # Authenticated REST calls (users, chat, etc.)
       components/
-        AuthModule.tsx           # All state + logic (the "controller")
-        AuthModuleView.tsx       # Pure render (the "view")
+        AuthModule.tsx           # State container + logic provider
+        AuthModuleView.tsx       # Dashboard view (to be extracted)
       utils/
         displayName.ts           # Display-name validation helpers
 ```
 
 ### Architecture pattern
 
-State and business logic live exclusively in `AuthModule.tsx`. `AuthModuleView.tsx` is a pure presentational component that receives props — it contains no state, no API calls, and no side effects beyond event handlers passed from `AuthModule`.
+- **Pages** (`src/pages/`) — Top-level route components
+- **Components** (`src/components/`) — Reusable UI components organized by feature
+- **Common** (`src/common/`) — Truly shared utilities, API clients, components
+- **Modules** (`src/modules/`) — Feature modules with their own API, utils, and legacy views
 
-When adding a new feature:
-1. Add state and handlers to `AuthModule.tsx`.
-2. Thread them as props into `AuthModuleView.tsx`.
-3. Render in `AuthModuleView.tsx`.
+State management lives in `AuthModule.tsx`. Page components receive props and are kept as pure as possible.
 
 ---
 
@@ -182,9 +194,19 @@ See `docs/WEBSOCKET_REFERENCE.md` for full payload shapes.
 
 ## SPA Routing
 
-There is no router library. Routes are detected by reading `window.location.pathname`:
-- `/` — main app
+Routing is handled by **Wouter** — a lightweight (~1.5KB) React Router alternative.
+
+**Routes:**
+- `/` — main app (register/login when logged out, dashboard when logged in)
 - `/confirm` — email confirmation landing page
+- `/reset-password` — password reset page
+
+**Usage:**
+- `useLocation()` — get/set current location
+- `useRoute(pattern)` — returns `[match, params]` tuple
+- `useSearch()` — get query string
+- `<Link href="/path">` — client-side navigation
+- `<Router>` — wraps app in App.tsx
 
 Production servers must redirect all unknown paths to `index.html`. See `deploy/nginx/drawback.chat.conf`.
 
@@ -206,15 +228,19 @@ yarn deploy       # Run deploy/deploy-frontend.sh
 ## Do / Don't
 
 **Do**
-- Keep all state in `AuthModule.tsx`.
+- Place route logic in page components (`src/pages/`).  
+- Extract reusable UI into feature components (`src/components/auth/`, `src/components/common/`).
+- Keep pages as presentation-focused as possible; pass data and handlers as props.
+- Keep state management in `AuthModule.tsx`.
 - Write strict TypeScript — no implicit `any`.
 - Use Tailwind classes; keep the rose colour palette consistent.
 - Normalise canvas coordinates before emitting draw events.
-- Guard against missing canvas context before drawing.
+- Guard against missing canvas context drawing.
+- Use Wouter hooks (`useLocation`, `useRoute`) for routing logic.
 
 **Don't**
-- Don't add state or API calls to `AuthModuleView.tsx`.
+- Don't mix business logic into page components — keep them presentational.
 - Don't use `socket.emit` outside `drawbackSocket.ts`.
-- Don't install a routing library — the app intentionally avoids one.
+- Don't use `window.location` directly — use Wouter's `useLocation()` hook instead.
 - Don't store tokens anywhere other than `tokenStorage.ts`.
 - Don't add CSS files for per-component styles; use Tailwind utilities.
