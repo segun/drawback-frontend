@@ -31,6 +31,23 @@ export type LoginResponse = {
   accessToken: string
 }
 
+export type ForgotPasswordPayload = {
+  email: string
+}
+
+export type ForgotPasswordResponse = {
+  message: string
+}
+
+export type ResetPasswordPayload = {
+  token: string
+  password: string
+}
+
+export type ResetPasswordResponse = {
+  message: string
+}
+
 const normalizeDisplayName = (displayName: string): string => displayName.trim()
 
 export const createAuthApi = (baseUrl: string) => {
@@ -121,11 +138,35 @@ export const createAuthApi = (baseUrl: string) => {
     )
   }
 
+  const forgotPassword = async (email: string): Promise<ForgotPasswordResponse> => {
+    return request<ForgotPasswordResponse>(
+      '/auth/forgot-password',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email: email.trim() }),
+      },
+      false,
+    )
+  }
+
+  const resetPassword = async (token: string, password: string): Promise<ResetPasswordResponse> => {
+    return request<ResetPasswordResponse>(
+      '/auth/reset-password',
+      {
+        method: 'POST',
+        body: JSON.stringify({ token, password }),
+      },
+      false,
+    )
+  }
+
   return {
     register,
     login,
     request,
     checkDisplayNameAvailability,
+    forgotPassword,
+    resetPassword,
     getAccessToken,
     setAccessToken,
     logout: clearAccessToken,

@@ -78,11 +78,49 @@ export function AuthModule() {
   const [tab, setTab] = useState<AuthTab>(() => (typeof window !== 'undefined' && window.location.pathname === '/confirm' ? 'login' : 'register'))
   const [registerEmail, setRegisterEmail] = useState('')
   const [registerPassword, setRegisterPassword] = useState('')
+  const [registerConfirmPassword, setRegisterConfirmPassword] = useState('')
   const [registerDisplayName, setRegisterDisplayName] = useState('@')
   const [displayNameAvailability, setDisplayNameAvailability] = useState<'idle' | 'invalid' | 'checking' | 'available' | 'taken'>('idle')
 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
+
+  const [showForgotPasswordModal, setShowForgotPasswordModal] = useState(false)
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
+  const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const search = new URLSearchParams(window.location.search)
+      return search.get('token')
+    }
+    return null
+  })
+  const [resetPasswordEmail, setResetPasswordEmail] = useState('')
+  const [resetPasswordNewPassword, setResetPasswordNewPassword] = useState('')
+  const [resetPasswordConfirmPassword, setResetPasswordConfirmPassword] = useState('')
+  const [resetPasswordResultStatus, setResetPasswordResultStatus] = useState<'success' | 'error' | null>(() => {
+    if (typeof window !== 'undefined') {
+      const search = new URLSearchParams(window.location.search)
+      const status = search.get('status')
+      if (status === 'success' || status === 'error') {
+        return status
+      }
+    }
+    return null
+  })
+  const [resetPasswordResultMessage, setResetPasswordResultMessage] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const search = new URLSearchParams(window.location.search)
+      return search.get('message')
+    }
+    return null
+  })
+  const [resetPasswordResultEmail, setResetPasswordResultEmail] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      const search = new URLSearchParams(window.location.search)
+      return search.get('email')
+    }
+    return null
+  })
 
   const [accessToken, setAccessToken] = useState<string | null>(() => authApi.getAccessToken())
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -302,6 +340,10 @@ export function AuthModule() {
       return 'Password must be between 8 and 72 characters.'
     }
 
+    if (password !== registerConfirmPassword) {
+      return 'Passwords do not match.'
+    }
+
     if (!isValidDisplayName(displayName)) {
       return 'Display name must match ^@[a-zA-Z0-9_]{3,29}$.'
     }
@@ -475,6 +517,7 @@ export function AuthModule() {
       showNotice('Registration successful. Please check your email to activate your account.', 'success')
       setLoginEmail(registerEmail.trim())
       setRegisterPassword('')
+      setRegisterConfirmPassword('')
       setDisplayNameAvailability('idle')
       setTab('login')
     } catch (error) {
@@ -517,6 +560,87 @@ export function AuthModule() {
     setAccessToken(null)
     resetDashboardData()
     showNotice('You have been logged out.', 'info')
+  }
+
+  const handleForgotPassword = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault()
+
+    const email = forgotPasswordEmail.trim()
+    if (!email) {
+      showNotice('Email is required.', 'error')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await authApi.forgotPassword(email)
+      showNotice('Check your email for a password reset link.', 'success')
+      setShowForgotPasswordModal(false)
+      setForgotPasswordEmail('')
+    } catch (error) {
+      showNotice(mapErrorToMessage(error), 'error')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleResetPassword = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
+    event.preventDefault()
+
+    const email = resetPasswordEmail.trim()
+    if (!email) {
+      showNotice('Email is required.', 'error')
+      return
+    }
+
+    const password = resetPasswordNewPassword
+    const confirmPassword = resetPasswordConfirmPassword
+
+    if (!password) {
+      showNotice('Password is required.', 'error')
+      return
+    }
+
+    if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) {
+      showNotice(`Password must be between ${PASSWORD_MIN} and ${PASSWORD_MAX} characters.`, 'error')
+      return
+    }
+
+    if (password !== confirmPassword) {
+      showNotice('Passwords do not match.', 'error')
+      return
+    }
+
+    if (!resetPasswordToken) {
+      showNotice('Invalid reset token.', 'error')
+      return
+    }
+
+    setIsSubmitting(true)
+    try {
+      await authApi.resetPassword(resetPasswordToken, password)
+      if (typeof window !== 'undefined') {
+        window.location.href = `/reset-password?status=success&email=${encodeURIComponent(email)}`
+      }
+    } catch (error) {
+      const message = mapErrorToMessage(error)
+      if (typeof window !== 'undefined') {
+        window.location.href = `/reset-password?status=error&message=${encodeURIComponent(message)}`
+      }
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleResetPasswordResultGoToLogin = (): void => {
+    setLoginEmail(resetPasswordResultEmail || '')
+    setResetPasswordResultStatus(null)
+    setResetPasswordResultMessage(null)
+    setResetPasswordResultEmail(null)
+    if (typeof window !== 'undefined') {
+      window.history.replaceState({}, '', '/confirm')
+      setTab('login')
+    }
   }
 
   useEffect(() => {
@@ -1120,6 +1244,8 @@ export function AuthModule() {
       setRegisterEmail={setRegisterEmail}
       registerPassword={registerPassword}
       setRegisterPassword={setRegisterPassword}
+      registerConfirmPassword={registerConfirmPassword}
+      setRegisterConfirmPassword={setRegisterConfirmPassword}
       registerDisplayName={registerDisplayName}
       setRegisterDisplayName={setRegisterDisplayName}
       normalizeRegisterDisplayNameInput={normalizeRegisterDisplayNameInput}
@@ -1129,6 +1255,23 @@ export function AuthModule() {
       loginPassword={loginPassword}
       setLoginPassword={setLoginPassword}
       isSubmitting={isSubmitting}
+      showForgotPasswordModal={showForgotPasswordModal}
+      setShowForgotPasswordModal={setShowForgotPasswordModal}
+      forgotPasswordEmail={forgotPasswordEmail}
+      setForgotPasswordEmail={setForgotPasswordEmail}
+      handleForgotPassword={handleForgotPassword}
+      resetPasswordToken={resetPasswordToken}
+      resetPasswordEmail={resetPasswordEmail}
+      setResetPasswordEmail={setResetPasswordEmail}
+      resetPasswordNewPassword={resetPasswordNewPassword}
+      setResetPasswordNewPassword={setResetPasswordNewPassword}
+      resetPasswordConfirmPassword={resetPasswordConfirmPassword}
+      setResetPasswordConfirmPassword={setResetPasswordConfirmPassword}
+      handleResetPassword={handleResetPassword}
+      resetPasswordResultStatus={resetPasswordResultStatus}
+      resetPasswordResultMessage={resetPasswordResultMessage}
+      resetPasswordResultEmail={resetPasswordResultEmail}
+      handleResetPasswordResultGoToLogin={handleResetPasswordResultGoToLogin}
       searchQuery={searchQuery}
       setSearchQuery={setSearchQuery}
       searchResults={searchResults}
