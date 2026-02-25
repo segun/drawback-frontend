@@ -165,7 +165,6 @@ export const emitDrawStroke = (requestId: string, stroke: unknown, userId: strin
     return
   }
 
-  console.log('Emitting draw.stroke', { requestId, stroke, userId })
   socket.emit('draw.stroke', { requestId, stroke, userId })
 }
 
@@ -174,7 +173,6 @@ export const emitDrawClear = (requestId: string, userId: string): void => {
     return
   }
 
-  console.log('Emitting draw.clear', { requestId, userId })
   socket.emit('draw.clear', { requestId, userId })
 }
 
@@ -183,7 +181,6 @@ export const emitDrawEmote = (requestId: string, emoji: string, userId: string):
     return
   }
 
-  console.log('Emitting draw.emote', { requestId, emoji, userId })
   socket.emit('draw.emote', { requestId, emoji, userId })
 }
 

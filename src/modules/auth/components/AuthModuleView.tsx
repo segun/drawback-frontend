@@ -1046,7 +1046,7 @@ export function AuthModuleView({
                                     </button>
                                     {showBrushSettings && (
                                       <div
-                                        className="absolute bottom-full right-0 z-30 mb-1 w-56 rounded-lg border border-rose-300 bg-white p-3 shadow-xl"
+                                        className="absolute right-0 z-30 w-56 rounded-lg border border-rose-300 bg-white p-3 shadow-xl bottom-full mb-1 max-lg:bottom-auto max-lg:top-full max-lg:mb-0 max-lg:mt-1 max-h-[70vh] overflow-y-scroll"
                                         onClick={(event) => event.stopPropagation()}
                                       >
                                         <div className="mb-2 text-xs font-semibold text-rose-700">Brush</div>
@@ -1117,7 +1117,7 @@ export function AuthModuleView({
                                                 key={color}
                                                 type="button"
                                                 onClick={() => setDrawColor(color)}
-                                                className="h-8 w-8 rounded-full border-2 transition-transform hover:scale-105"
+                                                className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-105"
                                                 style={{
                                                   backgroundColor: color,
                                                   borderColor: drawColor === color ? '#be123c' : '#fda4af',
@@ -1135,7 +1135,7 @@ export function AuthModuleView({
                                               type="color"
                                               value={drawColor === 'eraser' ? '#000000' : drawColor}
                                               onChange={(event) => setDrawColor(event.target.value)}
-                                              className="h-8 w-10 cursor-pointer rounded border border-rose-300 p-0"
+                                              className="h-6 w-8 cursor-pointer rounded border border-rose-300 p-0"
                                             />
                                           </label>
                                         </div>
