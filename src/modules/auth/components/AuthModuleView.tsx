@@ -1208,7 +1208,7 @@ export function AuthModuleView({
                                                                         </button>
                                                                         {showBrushSettings && (
                                                                             <div
-                                                                                className="absolute right-0 z-30 w-56 rounded-lg border border-rose-300 bg-white p-3 shadow-xl bottom-full mb-1 max-lg:bottom-auto max-lg:top-full max-lg:mb-0 max-lg:mt-1 max-h-[70vh] overflow-y-scroll"
+                                                                                className="absolute right-0 z-30 w-56 rounded-lg border border-rose-300 bg-white p-3 shadow-xl bottom-full mb-1 max-h-[70vh] overflow-y-scroll"
                                                                                 onClick={(event) =>
                                                                                     event.stopPropagation()
                                                                                 }
