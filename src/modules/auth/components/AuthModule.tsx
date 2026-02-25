@@ -121,6 +121,11 @@ export function AuthModule() {
   const [drawWidth, setDrawWidth] = useState<DrawStrokeWidth>(2)
   const [activeEmotes, setActiveEmotes] = useState<Array<{ id: string; emoji: string; x: number }>>([])
   const [activeRemoteEmotes, setActiveRemoteEmotes] = useState<Array<{ id: string; emoji: string; x: number }>>([])
+  const [brushAccordionOpen, setBrushAccordionOpen] = useState(false)
+  const [strokeAccordionOpen, setStrokeAccordionOpen] = useState(false)
+  const [eraserAccordionOpen, setEraserAccordionOpen] = useState(false)
+  const [colorAccordionOpen, setColorAccordionOpen] = useState(false)
+  const [customColorAccordionOpen, setCustomColorAccordionOpen] = useState(false)
 
   const showNotice = (text: string, type: Notice['type'] = 'info'): void => {
     setNotice({ text, type })
@@ -1142,6 +1147,7 @@ export function AuthModule() {
       waitingPeerRequestIds={waitingPeerRequestIds}
       openChat={openChat}
       closeRecentChat={closeRecentChat}
+      acceptedChatByUserId={acceptedChatByUserId}
       filteredChatRequests={filteredChatRequests}
       currentUserId={currentUserId}
       respondToRequest={respondToRequest}
@@ -1183,6 +1189,16 @@ export function AuthModule() {
       setDrawStrokeStyle={setDrawStrokeStyle}
       drawWidth={drawWidth}
       setDrawWidth={setDrawWidth}
+      brushAccordionOpen={brushAccordionOpen}
+      setBrushAccordionOpen={setBrushAccordionOpen}
+      strokeAccordionOpen={strokeAccordionOpen}
+      setStrokeAccordionOpen={setStrokeAccordionOpen}
+      eraserAccordionOpen={eraserAccordionOpen}
+      setEraserAccordionOpen={setEraserAccordionOpen}
+      colorAccordionOpen={colorAccordionOpen}
+      setColorAccordionOpen={setColorAccordionOpen}
+      customColorAccordionOpen={customColorAccordionOpen}
+      setCustomColorAccordionOpen={setCustomColorAccordionOpen}
       activeEmotes={activeEmotes}
       activeRemoteEmotes={activeRemoteEmotes}
       sendEmote={sendEmote}

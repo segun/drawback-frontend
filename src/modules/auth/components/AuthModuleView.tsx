@@ -47,6 +47,7 @@ type AuthModuleViewProps = {
   waitingPeerRequestIds: Set<string>
   openChat: (chatRequestId: string) => void
   closeRecentChat: (chatRequestId: string) => void
+  acceptedChatByUserId: Map<string, string>
 
   filteredChatRequests: ChatRequest[]
   currentUserId?: string
@@ -99,6 +100,16 @@ type AuthModuleViewProps = {
   activeRemoteEmotes: Array<{ id: string; emoji: string; x: number }>
   sendEmote: (emoji: string) => void
   presetEmotes: string[]
+  brushAccordionOpen: boolean
+  setBrushAccordionOpen: (open: boolean) => void
+  strokeAccordionOpen: boolean
+  setStrokeAccordionOpen: (open: boolean) => void
+  eraserAccordionOpen: boolean
+  setEraserAccordionOpen: (open: boolean) => void
+  colorAccordionOpen: boolean
+  setColorAccordionOpen: (open: boolean) => void
+  customColorAccordionOpen: boolean
+  setCustomColorAccordionOpen: (open: boolean) => void
 
   notice: Notice | null
   onDismissNotice: () => void
@@ -142,6 +153,7 @@ export function AuthModuleView({
   waitingPeerRequestIds,
   openChat,
   closeRecentChat,
+  acceptedChatByUserId,
   filteredChatRequests,
   currentUserId,
   respondToRequest,
@@ -187,6 +199,16 @@ export function AuthModuleView({
   activeRemoteEmotes,
   sendEmote,
   presetEmotes,
+  brushAccordionOpen,
+  setBrushAccordionOpen,
+  strokeAccordionOpen,
+  setStrokeAccordionOpen,
+  eraserAccordionOpen,
+  setEraserAccordionOpen,
+  colorAccordionOpen,
+  setColorAccordionOpen,
+  customColorAccordionOpen,
+  setCustomColorAccordionOpen,
   notice,
   onDismissNotice,
 }: AuthModuleViewProps) {
@@ -516,8 +538,8 @@ export function AuthModuleView({
                                 key={user.id}
                                 className={`flex items-center gap-2 rounded-md border border-rose-300 bg-rose-100 px-2 py-2 ${isConnected ? 'cursor-pointer hover:bg-rose-200' : ''}`}
                                 onClick={isConnected ? () => {
-                                  const chat = filteredRecentChats.find((c) => getOtherUser(c).id === user.id)
-                                  if (chat) handleOpenChat(chat.id)
+                                  const chatId = acceptedChatByUserId.get(user.id)
+                                  if (chatId) handleOpenChat(chatId)
                                 } : undefined}
                               >
                                 <span className="min-w-0 flex-1 truncate text-sm text-rose-700">{user.displayName}</span>
@@ -943,6 +965,14 @@ export function AuthModuleView({
                           </div>
                         )}
 
+                        {joinedChatRequestId === selectedChat.id && peerPresent && (
+                          <div className="mb-3">
+                            <span className="rounded-full border border-green-400 bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                              Drawing with {getOtherUser(selectedChat).displayName}
+                            </span>
+                          </div>
+                        )}
+
                         <div className="relative min-h-0 flex-1 flex flex-col overflow-hidden landscape:max-lg:flex-none landscape:max-lg:overflow-visible">
                           <div className="grid min-h-0 flex-1 gap-3 overflow-hidden grid-rows-2 landscape:max-lg:flex-none landscape:max-lg:overflow-visible landscape:max-lg:grid-rows-none landscape:max-lg:min-h-[500px]">
                             <div className="relative flex min-h-0 flex-col rounded-md border border-rose-300 bg-rose-100 p-3">
@@ -1049,95 +1079,165 @@ export function AuthModuleView({
                                         className="absolute right-0 z-30 w-56 rounded-lg border border-rose-300 bg-white p-3 shadow-xl bottom-full mb-1 max-lg:bottom-auto max-lg:top-full max-lg:mb-0 max-lg:mt-1 max-h-[70vh] overflow-y-scroll"
                                         onClick={(event) => event.stopPropagation()}
                                       >
-                                        <div className="mb-2 text-xs font-semibold text-rose-700">Brush</div>
-                                        <div className="mb-3 flex flex-col gap-1">
+                                        {/* Brush Section */}
+                                        <div className="mb-2">
                                           <button
                                             type="button"
-                                            onClick={() => {
-                                              setDrawStrokeStyle('normal')
-                                              setShowBrushSettings(false)
-                                            }}
-                                            className={`flex items-center gap-2 rounded px-2 py-1 text-xs font-medium transition-colors ${drawStrokeStyle === 'normal' ? 'bg-rose-700 text-rose-100' : 'text-rose-700 hover:bg-rose-100'}`}
+                                            onClick={() => setBrushAccordionOpen(!brushAccordionOpen)}
+                                            className="flex w-full items-center justify-between rounded px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
                                           >
-                                            <PenLine className="h-4 w-4" aria-hidden="true" />
-                                            Pen
+                                            <span>Brush</span>
+                                            <span className={`transition-transform ${brushAccordionOpen ? 'rotate-180' : ''}`}>
+                                              ▼
+                                            </span>
                                           </button>
-                                          <button
-                                            type="button"
-                                            onClick={() => {
-                                              setDrawStrokeStyle('brush')
-                                              setShowBrushSettings(false)
-                                            }}
-                                            className={`flex items-center gap-2 rounded px-2 py-1 text-xs font-medium transition-colors ${drawStrokeStyle === 'brush' ? 'bg-rose-700 text-rose-100' : 'text-rose-700 hover:bg-rose-100'}`}
-                                          >
-                                            <Brush className="h-4 w-4" aria-hidden="true" />
-                                            Brush
-                                          </button>
-                                        </div>
-                                        <hr className="my-2 border-rose-200" />
-                                        <div className="mb-1 text-xs font-semibold text-rose-700">Stroke</div>
-                                        <div className="flex items-center gap-2">
-                                          <input
-                                            type="range"
-                                            min={1}
-                                            max={10}
-                                            step={1}
-                                            value={drawWidth}
-                                            onChange={(event) => {
-                                              const value = Number(event.target.value) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
-                                              setDrawWidth(value)
-                                            }}
-                                            className="w-full accent-rose-700"
-                                          />
-                                          <span className="w-6 text-right text-xs font-semibold text-rose-700">{drawWidth}</span>
-                                        </div>
-                                        <hr className="my-2 border-rose-200" />
-                                        <div className="flex flex-col gap-2">
-                                          <div className="flex items-center justify-between gap-3">
-                                            <span className="text-xs font-medium text-rose-700">Eraser</span>
-                                            <button
-                                              type="button"
-                                              onClick={() => setDrawColor('eraser')}
-                                              title="Eraser"
-                                              aria-label="Eraser tool"
-                                              style={{
-                                                borderColor: drawColor === 'eraser' ? '#15803d' : '#86efac',
-                                                boxShadow: drawColor === 'eraser' ? '0 0 0 2px #22c55e' : undefined,
-                                              }}
-                                              className={`flex h-8 w-8 items-center justify-center rounded-full border-2 bg-green-100 transition-transform ${drawColor === 'eraser' ? 'scale-110' : 'hover:scale-105'}`}
-                                            >
-                                              <Eraser className="h-3.5 w-3.5 text-green-700" aria-hidden="true" />
-                                            </button>
-                                          </div>
-                                          <hr className="border-rose-200" />
-                                          <div className="text-xs font-semibold text-rose-700">Color</div>
-                                          <div className="flex flex-wrap items-center gap-2">
-                                            {presetColors.map((color) => (
+                                          {brushAccordionOpen && (
+                                            <div className="mt-2 flex flex-col gap-1">
                                               <button
-                                                key={color}
                                                 type="button"
-                                                onClick={() => setDrawColor(color)}
-                                                className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-105"
-                                                style={{
-                                                  backgroundColor: color,
-                                                  borderColor: drawColor === color ? '#be123c' : '#fda4af',
-                                                  boxShadow: drawColor === color ? '0 0 0 2px #fb7185' : undefined,
+                                                onClick={() => {
+                                                  setDrawStrokeStyle('normal')
                                                 }}
-                                                aria-label={`Select color ${color}`}
-                                                title="Select color"
+                                                className={`flex items-center gap-2 rounded px-2 py-1 text-xs font-medium transition-colors ${drawStrokeStyle === 'normal' ? 'bg-rose-700 text-rose-100' : 'text-rose-700 hover:bg-rose-100'}`}
+                                              >
+                                                <PenLine className="h-4 w-4" aria-hidden="true" />
+                                                Pen
+                                              </button>
+                                              <button
+                                                type="button"
+                                                onClick={() => {
+                                                  setDrawStrokeStyle('brush')
+                                                }}
+                                                className={`flex items-center gap-2 rounded px-2 py-1 text-xs font-medium transition-colors ${drawStrokeStyle === 'brush' ? 'bg-rose-700 text-rose-100' : 'text-rose-700 hover:bg-rose-100'}`}
+                                              >
+                                                <Brush className="h-4 w-4" aria-hidden="true" />
+                                                Brush
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <hr className="my-2 border-rose-200" />
+
+                                        {/* Stroke Section */}
+                                        <div className="mb-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => setStrokeAccordionOpen(!strokeAccordionOpen)}
+                                            className="flex w-full items-center justify-between rounded px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                          >
+                                            <span>Stroke</span>
+                                            <span className={`transition-transform ${strokeAccordionOpen ? 'rotate-180' : ''}`}>
+                                              ▼
+                                            </span>
+                                          </button>
+                                          {strokeAccordionOpen && (
+                                            <div className="mt-2 flex items-center gap-2">
+                                              <input
+                                                type="range"
+                                                min={1}
+                                                max={10}
+                                                step={1}
+                                                value={drawWidth}
+                                                onChange={(event) => {
+                                                  const value = Number(event.target.value) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+                                                  setDrawWidth(value)
+                                                }}
+                                                className="w-full accent-rose-700"
                                               />
-                                            ))}
-                                          </div>
-                                          <hr className="border-rose-200" />
-                                          <label className="flex items-center justify-between gap-3 text-xs text-rose-700">
-                                            <span className="font-semibold">Custom color</span>
-                                            <input
-                                              type="color"
-                                              value={drawColor === 'eraser' ? '#000000' : drawColor}
-                                              onChange={(event) => setDrawColor(event.target.value)}
-                                              className="h-6 w-8 cursor-pointer rounded border border-rose-300 p-0"
-                                            />
-                                          </label>
+                                              <span className="w-6 text-right text-xs font-semibold text-rose-700">{drawWidth}</span>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <hr className="my-2 border-rose-200" />
+
+                                        {/* Eraser Section */}
+                                        <div className="mb-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => setEraserAccordionOpen(!eraserAccordionOpen)}
+                                            className="flex w-full items-center justify-between rounded px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                          >
+                                            <span>Eraser</span>
+                                            <span className={`transition-transform ${eraserAccordionOpen ? 'rotate-180' : ''}`}>
+                                              ▼
+                                            </span>
+                                          </button>
+                                          {eraserAccordionOpen && (
+                                            <div className="mt-2 flex items-center justify-between gap-3">
+                                              <button
+                                                type="button"
+                                                onClick={() => setDrawColor('eraser')}
+                                                title="Eraser"
+                                                aria-label="Eraser tool"
+                                                style={{
+                                                  borderColor: drawColor === 'eraser' ? '#15803d' : '#86efac',
+                                                  boxShadow: drawColor === 'eraser' ? '0 0 0 2px #22c55e' : undefined,
+                                                }}
+                                                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 bg-green-100 transition-transform ${drawColor === 'eraser' ? 'scale-110' : 'hover:scale-105'}`}
+                                              >
+                                                <Eraser className="h-3.5 w-3.5 text-green-700" aria-hidden="true" />
+                                              </button>
+                                            </div>
+                                          )}
+                                        </div>
+                                        <hr className="my-2 border-rose-200" />
+
+                                        {/* Color Section */}
+                                        <div className="mb-2">
+                                          <button
+                                            type="button"
+                                            onClick={() => setColorAccordionOpen(!colorAccordionOpen)}
+                                            className="flex w-full items-center justify-between rounded px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                          >
+                                            <span>Color</span>
+                                            <span className={`transition-transform ${colorAccordionOpen ? 'rotate-180' : ''}`}>
+                                              ▼
+                                            </span>
+                                          </button>
+                                          {colorAccordionOpen && (
+                                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                                              {presetColors.map((color) => (
+                                                <button
+                                                  key={color}
+                                                  type="button"
+                                                  onClick={() => setDrawColor(color)}
+                                                  className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-105"
+                                                  style={{
+                                                    backgroundColor: color,
+                                                    borderColor: drawColor === color ? '#be123c' : '#fda4af',
+                                                    boxShadow: drawColor === color ? '0 0 0 2px #fb7185' : undefined,
+                                                  }}
+                                                  aria-label={`Select color ${color}`}
+                                                  title="Select color"
+                                                />
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                        <hr className="my-2 border-rose-200" />
+
+                                        {/* Custom Color Section */}
+                                        <div>
+                                          <button
+                                            type="button"
+                                            onClick={() => setCustomColorAccordionOpen(!customColorAccordionOpen)}
+                                            className="flex w-full items-center justify-between rounded px-2 py-1 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                                          >
+                                            <span>Custom color</span>
+                                            <span className={`transition-transform ${customColorAccordionOpen ? 'rotate-180' : ''}`}>
+                                              ▼
+                                            </span>
+                                          </button>
+                                          {customColorAccordionOpen && (
+                                            <div className="mt-2 flex items-center justify-between gap-3 text-xs text-rose-700">
+                                              <input
+                                                type="color"
+                                                value={drawColor === 'eraser' ? '#000000' : drawColor}
+                                                onChange={(event) => setDrawColor(event.target.value)}
+                                                className="h-6 w-8 cursor-pointer rounded border border-rose-300 p-0"
+                                              />
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     )}
