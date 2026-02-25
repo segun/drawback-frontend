@@ -1,5 +1,5 @@
 import { useState, type PointerEvent as ReactPointerEvent } from 'react'
-import { Ban, Bookmark, Eraser, LogOut, Menu, Plus, RefreshCw, Save, SaveAll, Send, ShieldOff, Trash2, User, X } from 'lucide-react'
+import { Ban, Bookmark, Brush, Eraser, LogOut, Menu, PenLine, Plus, RefreshCw, Save, SaveAll, Send, ShieldOff, SlidersHorizontal, Trash2, User, X } from 'lucide-react'
 import { NoticeBanner, type Notice } from '../../../common/components/NoticeBanner'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../constants'
 import type { BlockedUser, ChatRequest, SavedChat, UserMode, UserProfile } from '../api/socialApi'
@@ -91,6 +91,10 @@ type AuthModuleViewProps = {
   stopLocalDrawing: () => void
   drawColor: string
   setDrawColor: (color: string) => void
+  drawStrokeStyle: 'normal' | 'brush'
+  setDrawStrokeStyle: (style: 'normal' | 'brush') => void
+  drawWidth: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+  setDrawWidth: (width: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10) => void
   activeEmotes: Array<{ id: string; emoji: string; x: number }>
   activeRemoteEmotes: Array<{ id: string; emoji: string; x: number }>
   sendEmote: (emoji: string) => void
@@ -175,6 +179,10 @@ export function AuthModuleView({
   stopLocalDrawing,
   drawColor,
   setDrawColor,
+  drawStrokeStyle,
+  setDrawStrokeStyle,
+  drawWidth,
+  setDrawWidth,
   activeEmotes,
   activeRemoteEmotes,
   sendEmote,
@@ -190,6 +198,7 @@ export function AuthModuleView({
   const [newRequestDisplayName, setNewRequestDisplayName] = useState('@')
   const [isSubmittingNewRequest, setIsSubmittingNewRequest] = useState(false)
   const [showEmotePicker, setShowEmotePicker] = useState(false)
+  const [showBrushSettings, setShowBrushSettings] = useState(false)
 
   const handleOpenChat = (chatRequestId: string) => {
     openChat(chatRequestId)
@@ -994,30 +1003,86 @@ export function AuthModuleView({
                                     </div>
                                   )}
                                 </div>
-                                <div className="ml-auto flex flex-wrap items-center gap-1">
-                                <button
-                                  type="button"
-                                  onClick={() => setDrawColor('eraser')}
-                                  title="Eraser"
-                                  aria-label="Eraser tool"
-                                  style={{
-                                    borderColor: drawColor === 'eraser' ? '#15803d' : '#86efac',
-                                    boxShadow: drawColor === 'eraser' ? '0 0 0 2px #22c55e' : undefined,
-                                  }}
-                                  className={`flex h-9 w-9 items-center justify-center rounded-full border-2 bg-green-100 transition-transform ${drawColor === 'eraser' ? 'scale-125' : 'hover:scale-110'}`}
-                                >
-                                  <Eraser className="h-4 w-4 text-green-700" aria-hidden="true" />
-                                </button>
-                                <label className="cursor-pointer" title="Custom color" aria-label="Custom drawing color">
-                                  <span className="sr-only">Custom color</span>
-                                  <input
-                                    type="color"
-                                    value={drawColor === 'eraser' ? '#000000' : drawColor}
-                                    onChange={(event) => setDrawColor(event.target.value)}
-                                    className="h-8 w-8 cursor-pointer rounded border border-rose-300 p-0"
-                                  />
-                                </label>
-                              </div>
+                                <div className="ml-auto flex flex-wrap items-center gap-2">
+                                  <div className="relative">
+                                    <button
+                                      type="button"
+                                      onClick={() => setShowBrushSettings((v) => !v)}
+                                      title="Brush settings"
+                                      aria-label="Brush settings"
+                                      className="flex h-9 w-9 items-center justify-center rounded-full border border-rose-400 bg-rose-100 text-rose-700 hover:bg-rose-200"
+                                    >
+                                      <SlidersHorizontal className="h-4 w-4" aria-hidden="true" />
+                                    </button>
+                                    {showBrushSettings && (
+                                      <div className="absolute bottom-full right-0 z-30 mb-1 w-52 rounded-lg border border-rose-300 bg-white p-3 shadow-xl">
+                                        <div className="mb-2 text-xs font-semibold text-rose-700">Brush</div>
+                                        <div className="mb-3 flex flex-col gap-1">
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setDrawStrokeStyle('normal')
+                                              setShowBrushSettings(false)
+                                            }}
+                                            className={`flex items-center gap-2 rounded px-2 py-1 text-xs font-medium transition-colors ${drawStrokeStyle === 'normal' ? 'bg-rose-700 text-rose-100' : 'text-rose-700 hover:bg-rose-100'}`}
+                                          >
+                                            <PenLine className="h-4 w-4" aria-hidden="true" />
+                                            Pen
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => {
+                                              setDrawStrokeStyle('brush')
+                                              setShowBrushSettings(false)
+                                            }}
+                                            className={`flex items-center gap-2 rounded px-2 py-1 text-xs font-medium transition-colors ${drawStrokeStyle === 'brush' ? 'bg-rose-700 text-rose-100' : 'text-rose-700 hover:bg-rose-100'}`}
+                                          >
+                                            <Brush className="h-4 w-4" aria-hidden="true" />
+                                            Brush
+                                          </button>
+                                        </div>
+                                        <div className="mb-1 text-xs font-semibold text-rose-700">Stroke</div>
+                                        <div className="flex items-center gap-2">
+                                          <input
+                                            type="range"
+                                            min={1}
+                                            max={10}
+                                            step={1}
+                                            value={drawWidth}
+                                            onChange={(event) => {
+                                              const value = Number(event.target.value) as 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+                                              setDrawWidth(value)
+                                            }}
+                                            className="w-full accent-rose-700"
+                                          />
+                                          <span className="w-6 text-right text-xs font-semibold text-rose-700">{drawWidth}</span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <button
+                                    type="button"
+                                    onClick={() => setDrawColor('eraser')}
+                                    title="Eraser"
+                                    aria-label="Eraser tool"
+                                    style={{
+                                      borderColor: drawColor === 'eraser' ? '#15803d' : '#86efac',
+                                      boxShadow: drawColor === 'eraser' ? '0 0 0 2px #22c55e' : undefined,
+                                    }}
+                                    className={`flex h-9 w-9 items-center justify-center rounded-full border-2 bg-green-100 transition-transform ${drawColor === 'eraser' ? 'scale-125' : 'hover:scale-110'}`}
+                                  >
+                                    <Eraser className="h-4 w-4 text-green-700" aria-hidden="true" />
+                                  </button>
+                                  <label className="cursor-pointer" title="Custom color" aria-label="Custom drawing color">
+                                    <span className="sr-only">Custom color</span>
+                                    <input
+                                      type="color"
+                                      value={drawColor === 'eraser' ? '#000000' : drawColor}
+                                      onChange={(event) => setDrawColor(event.target.value)}
+                                      className="h-8 w-8 cursor-pointer rounded border border-rose-300 p-0"
+                                    />
+                                  </label>
+                                </div>
                             </div>
                               <canvas
                               ref={localCanvasRef}

@@ -16,15 +16,18 @@ type NormalizedPoint = {
   y: number
 }
 
+type DrawStrokeStyle = 'normal' | 'brush'
+type DrawStrokeWidth = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10
+
 type DrawSegmentStroke = {
   kind: 'segment'
   from: NormalizedPoint
   to: NormalizedPoint
   color: string
   width: number
+  style?: DrawStrokeStyle
 }
 
-const DRAW_WIDTH = 2
 const ERASER_WIDTH = 40
 
 const PRESET_EMOTES = [
@@ -37,6 +40,8 @@ const PRESET_EMOTES = [
 ]
 
 const isFiniteNumber = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+
+const isDrawStrokeStyle = (value: unknown): value is DrawStrokeStyle => value === 'normal' || value === 'brush'
 
 const isNormalizedPoint = (value: unknown): value is NormalizedPoint => {
   if (!value || typeof value !== 'object') {
@@ -52,7 +57,7 @@ const isDrawSegmentStroke = (value: unknown): value is DrawSegmentStroke => {
     return false
   }
 
-  const candidate = value as { kind?: unknown; from?: unknown; to?: unknown; color?: unknown; width?: unknown }
+  const candidate = value as { kind?: unknown; from?: unknown; to?: unknown; color?: unknown; width?: unknown; style?: unknown }
 
   return (
     candidate.kind === 'segment'
@@ -60,6 +65,7 @@ const isDrawSegmentStroke = (value: unknown): value is DrawSegmentStroke => {
     && isNormalizedPoint(candidate.to)
     && typeof candidate.color === 'string'
     && isFiniteNumber(candidate.width)
+    && (candidate.style === undefined || isDrawStrokeStyle(candidate.style))
   )
 }
 
@@ -111,6 +117,8 @@ export function AuthModule() {
   const remoteCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const localLastPointRef = useRef<NormalizedPoint | null>(null)
   const [drawColor, setDrawColor] = useState('#be123c')
+  const [drawStrokeStyle, setDrawStrokeStyle] = useState<DrawStrokeStyle>('normal')
+  const [drawWidth, setDrawWidth] = useState<DrawStrokeWidth>(2)
   const [activeEmotes, setActiveEmotes] = useState<Array<{ id: string; emoji: string; x: number }>>([])
   const [activeRemoteEmotes, setActiveRemoteEmotes] = useState<Array<{ id: string; emoji: string; x: number }>>([])
 
@@ -174,6 +182,45 @@ export function AuthModule() {
       context.moveTo(stroke.from.x * width, stroke.from.y * height)
       context.lineTo(stroke.to.x * width, stroke.to.y * height)
       context.stroke()
+      context.restore()
+    } else if (stroke.style === 'brush') {
+      const startX = stroke.from.x * width
+      const startY = stroke.from.y * height
+      const endX = stroke.to.x * width
+      const endY = stroke.to.y * height
+      const dx = endX - startX
+      const dy = endY - startY
+      const distance = Math.hypot(dx, dy) || 1
+      const unitX = dx / distance
+      const unitY = dy / distance
+      const trailingOffset = Math.min(stroke.width * 0.6, 10)
+
+      context.save()
+      context.strokeStyle = stroke.color
+      context.lineCap = 'round'
+      context.lineJoin = 'round'
+
+      context.globalAlpha = 0.25
+      context.lineWidth = stroke.width * 1.9
+      context.beginPath()
+      context.moveTo(startX, startY)
+      context.lineTo(endX, endY)
+      context.stroke()
+
+      context.globalAlpha = 0.95
+      context.lineWidth = stroke.width
+      context.beginPath()
+      context.moveTo(startX, startY)
+      context.lineTo(endX, endY)
+      context.stroke()
+
+      context.globalAlpha = 0.18
+      context.lineWidth = Math.max(1, stroke.width * 0.7)
+      context.beginPath()
+      context.moveTo(startX - unitX * trailingOffset, startY - unitY * trailingOffset)
+      context.lineTo(endX - unitX * trailingOffset, endY - unitY * trailingOffset)
+      context.stroke()
+
       context.restore()
     } else {
       context.strokeStyle = stroke.color
@@ -652,13 +699,15 @@ export function AuthModule() {
       return
     }
 
+    const drawWidthValue = drawColor === 'eraser' ? ERASER_WIDTH : drawWidth
     const nextPoint = getNormalizedPointFromPointerEvent(event)
     const stroke: DrawSegmentStroke = {
       kind: 'segment',
       from: localLastPointRef.current,
       to: nextPoint,
       color: drawColor,
-      width: drawColor === 'eraser' ? ERASER_WIDTH : DRAW_WIDTH,
+      width: drawWidthValue,
+      style: drawStrokeStyle,
     }
 
     drawSegmentOnCanvas(localCanvasRef.current, stroke)
@@ -1129,6 +1178,10 @@ export function AuthModule() {
       stopLocalDrawing={stopLocalDrawing}
       drawColor={drawColor}
       setDrawColor={setDrawColor}
+      drawStrokeStyle={drawStrokeStyle}
+      setDrawStrokeStyle={setDrawStrokeStyle}
+      drawWidth={drawWidth}
+      setDrawWidth={setDrawWidth}
       activeEmotes={activeEmotes}
       activeRemoteEmotes={activeRemoteEmotes}
       sendEmote={sendEmote}
