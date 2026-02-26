@@ -1,6 +1,7 @@
 import { Router, Route, Switch, Redirect } from 'wouter'
 import { AuthModule } from './modules/auth/components/AuthModule'
 import { MainPage } from './pages/MainPage'
+import { PrivacyPage } from './pages/PrivacyPage'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/login" component={AuthModule} />
         <Route path="/confirm" component={AuthModule} />
         <Route path="/reset-password" component={AuthModule} />
+        <Route path="/privacy" component={PrivacyPage} />
         <Route>
           <Redirect to="/" />
         </Route>

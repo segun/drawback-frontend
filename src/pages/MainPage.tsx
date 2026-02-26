@@ -29,7 +29,7 @@ export function MainPage() {
             </Link>
           </div>
 
-          <div className="mt-6">
+          {/* <div className="mt-6">
             <p className="mb-2 text-sm font-medium text-rose-700">How it works</p>
             <video
               src="/videos/how.mov"
@@ -40,6 +40,17 @@ export function MainPage() {
               playsInline
               className="w-full rounded-md border border-rose-300"
             />
+          </div> */}
+
+          <div className="mt-6 text-center">
+            <Link
+              href="/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-rose-600 underline hover:text-rose-800"
+            >
+              Privacy Policy
+            </Link>
           </div>
         </div>
       </main>
