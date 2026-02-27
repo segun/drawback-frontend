@@ -2,6 +2,10 @@
 
 Auth-first frontend aligned to backend APIs.
 
+## Flutter migration
+
+A phased Flutter auth MVP lives in [flutter/README.md](flutter/README.md).
+
 ## Auth flow
 
 1. User registers with `email`, `password`, and `displayName` (`@name`).
