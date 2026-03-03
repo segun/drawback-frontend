@@ -93,6 +93,11 @@ export const createSocialApi = (authApi: AuthApi) => {
       method: 'DELETE',
     })
 
+  const removeRecentChat = (chatRequestId: string) =>
+    authApi.request<void>(`/chat/requests/${chatRequestId}/remove`, {
+      method: 'DELETE',
+    })
+
   const listSavedChats = () => authApi.request<SavedChat[]>('/chat/saved')
 
   const saveChat = (chatRequestId: string) =>
@@ -135,6 +140,7 @@ export const createSocialApi = (authApi: AuthApi) => {
     sendChatRequest,
     respondToChatRequest,
     cancelChatRequest,
+    removeRecentChat,
     listSavedChats,
     saveChat,
     deleteSavedChat,

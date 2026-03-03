@@ -75,7 +75,7 @@ Register a new account. Sends a confirmation email — the user **cannot log in*
 |---|---|
 | `email` | Valid email, max 254 chars |
 | `password` | Min 8, max 72 chars |
-| `displayName` | Must match `^@[a-zA-Z0-9_]{3,29}$` |
+| `displayName` | Must match `^@[a-zA-Z0-9_]{2,29}$` |
 
 **Response `201`**
 ```json

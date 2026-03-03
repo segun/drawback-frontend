@@ -84,7 +84,7 @@ type AuthModuleViewProps = {
     selectedChatRequestId: string | null;
     waitingPeerRequestIds: Set<string>;
     openChat: (chatRequestId: string) => void;
-    closeRecentChat: (chatRequestId: string) => void;
+    closeRecentChat: (chatRequestId: string) => Promise<void>;
     acceptedChatByUserId: Map<string, string>;
 
     filteredChatRequests: ChatRequest[];
@@ -515,13 +515,13 @@ export function AuthModuleView({
                                                             <button
                                                                 type="button"
                                                                 onClick={() =>
-                                                                    closeRecentChat(chat.id)
+                                                                    void closeRecentChat(chat.id)
                                                                 }
                                                                 className={`rounded-md p-1 ${isActive ? "hover:bg-rose-800 active:bg-rose-900" : "hover:bg-rose-200 active:bg-rose-300"}`}
-                                                                aria-label={`Close chat with ${other.displayName}`}
-                                                                title="Close chat"
+                                                                aria-label={`Remove chat with ${other.displayName}`}
+                                                                title="Remove chat"
                                                             >
-                                                                <X
+                                                                <Trash2
                                                                     className="h-3.5 w-3.5"
                                                                     aria-hidden="true"
                                                                 />

@@ -90,6 +90,7 @@ export function AuthModule() {
   const [registerConfirmPassword, setRegisterConfirmPassword] = useState('')
   const [registerDisplayName, setRegisterDisplayName] = useState('@')
   const [displayNameAvailability, setDisplayNameAvailability] = useState<'idle' | 'invalid' | 'checking' | 'available' | 'taken'>('idle')
+  const [blurredFields, setBlurredFields] = useState<Set<string>>(new Set())
 
   const [loginEmail, setLoginEmail] = useState('')
   const [loginPassword, setLoginPassword] = useState('')
@@ -134,7 +135,6 @@ export function AuthModule() {
   const [peerPresent, setPeerPresent] = useState<boolean>(false)
   const [showReconnectButton, setShowReconnectButton] = useState(false)
   const [isReconnecting, setIsReconnecting] = useState(false)
-  const [closedRecentChatRequestIds, setClosedRecentChatRequestIds] = useState<Set<string>>(new Set())
   const [waitingPeerRequestIds, setWaitingPeerRequestIds] = useState<Set<string>>(new Set())
 
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -304,6 +304,12 @@ export function AuthModule() {
   }
 
   useEffect(() => {
+    // Only check availability if displayName field has been blurred and is valid
+    if (!blurredFields.has('displayName')) {
+      setDisplayNameAvailability('idle')
+      return
+    }
+
     const trimmed = registerDisplayName.trim()
     if (!isValidDisplayName(trimmed)) {
       // Only show 'invalid' once the user has typed something beyond the bare '@'
@@ -323,7 +329,7 @@ export function AuthModule() {
     }, 400)
 
     return () => clearTimeout(timer)
-  }, [registerDisplayName])
+  }, [registerDisplayName, blurredFields])
 
   const validateRegisterInput = (): string | null => {
     const email = registerEmail.trim()
@@ -343,7 +349,7 @@ export function AuthModule() {
     }
 
     if (!isValidDisplayName(displayName)) {
-      return 'Display name must match ^@[a-zA-Z0-9_]{3,29}$.'
+      return 'Must start with @ followed by 3–29 letters, numbers or underscores.'
     }
 
     return null
@@ -391,7 +397,6 @@ export function AuthModule() {
     setSelectedChatRequestId(null)
     setJoinedChatRequestId(null)
     selectedChatRequestIdRef.current = null
-    setClosedRecentChatRequestIds(new Set())
   }
 
   const loadDashboardData = async (showLoading = true): Promise<void> => {
@@ -486,8 +491,17 @@ export function AuthModule() {
     setLocation('/login')
   }, [isConfirmRoute, searchParams, setLocation])
 
+  const handleBlur = (fieldName: string): void => {
+    setBlurredFields((prev) => new Set(prev).add(fieldName))
+  }
+
   const register = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
     event.preventDefault()
+    
+    // Mark all fields as blurred for final validation
+    const allBlurred = new Set(['email', 'password', 'confirmPassword', 'displayName'])
+    setBlurredFields(allBlurred)
+    
     const validationError = validateRegisterInput()
     if (validationError) {
       showNotice(validationError, 'error')
@@ -505,6 +519,10 @@ export function AuthModule() {
       showNotice('Still checking display name availability. Please wait a moment.', 'info')
       return
     }
+    if (displayNameAvailability === 'idle') {
+      showNotice('Please fill in all fields correctly.', 'error')
+      return
+    }
 
     setIsSubmitting(true)
     try {
@@ -518,6 +536,7 @@ export function AuthModule() {
       setRegisterPassword('')
       setRegisterConfirmPassword('')
       setDisplayNameAvailability('idle')
+      setBlurredFields(new Set())
       setLocation('/login')
     } catch (error) {
       showNotice(mapErrorToMessage(error), 'error')
@@ -661,7 +680,7 @@ export function AuthModule() {
 
     const displayName = profileDisplayName.trim()
     if (!isValidDisplayName(displayName)) {
-      showNotice('Display name must match ^@[a-zA-Z0-9_]{3,29}$.', 'error')
+      showNotice('Must start with @ followed by 3–29 letters, numbers or underscores.', 'error')
       return
     }
 
@@ -753,15 +772,6 @@ export function AuthModule() {
   }
 
   const openChat = (chatRequestId: string): void => {
-    setClosedRecentChatRequestIds((previous) => {
-      if (!previous.has(chatRequestId)) {
-        return previous
-      }
-
-      const next = new Set(previous)
-      next.delete(chatRequestId)
-      return next
-    })
     setWaitingPeerRequestIds((previous) => {
       if (!previous.has(chatRequestId)) {
         return previous
@@ -774,19 +784,18 @@ export function AuthModule() {
     setSelectedChatRequestId(chatRequestId)
   }
 
-  const closeRecentChat = (chatRequestId: string): void => {
-    setClosedRecentChatRequestIds((previous) => {
-      if (previous.has(chatRequestId)) {
-        return previous
+  const closeRecentChat = async (chatRequestId: string): Promise<void> => {
+    try {
+      await socialApi.removeRecentChat(chatRequestId)
+      
+      // Remove from local state
+      setChatRequests((prev) => prev.filter((req) => req.id !== chatRequestId))
+      
+      if (selectedChatRequestId === chatRequestId) {
+        setSelectedChatRequestId(null)
       }
-
-      const next = new Set(previous)
-      next.add(chatRequestId)
-      return next
-    })
-
-    if (selectedChatRequestId === chatRequestId) {
-      setSelectedChatRequestId(null)
+    } catch (error) {
+      showNotice('Failed to remove chat', 'error')
     }
   }
 
@@ -1189,7 +1198,7 @@ export function AuthModule() {
   const searchTerm = searchQuery.trim().toLowerCase()
   const includesSearch = (value: string): boolean => !searchTerm || value.toLowerCase().includes(searchTerm)
 
-  const filteredRecentChats = recentChats.filter((chat) => !closedRecentChatRequestIds.has(chat.id) && includesSearch(getOtherUser(chat).displayName))
+  const filteredRecentChats = recentChats.filter((chat) => includesSearch(getOtherUser(chat).displayName))
   const filteredChatRequests = chatRequests.filter((request) => {
     const other = getOtherUser(request)
     return request.status !== 'ACCEPTED' && request.status !== 'REJECTED' && includesSearch(`${other.displayName} ${request.status}`)
@@ -1214,17 +1223,6 @@ export function AuthModule() {
       setSelectedChatRequestId(null)
     }
   }, [selectedChatRequestId, recentChats])
-
-  useEffect(() => {
-    const recentChatIdSet = new Set(recentChats.map((chat) => chat.id))
-    setClosedRecentChatRequestIds((previous) => {
-      const next = new Set(Array.from(previous).filter((chatRequestId) => recentChatIdSet.has(chatRequestId)))
-      if (next.size === previous.size) {
-        return previous
-      }
-      return next
-    })
-  }, [recentChats])
 
   // Redirect to dashboard if logged in and on auth pages
   if (accessToken && (isRegisterRoute || isLoginRoute)) {
@@ -1273,6 +1271,8 @@ export function AuthModule() {
         onSubmit={register}
         notice={notice}
         onDismissNotice={() => setNotice(null)}
+        blurredFields={blurredFields}
+        onBlur={handleBlur}
       />
     )
   }

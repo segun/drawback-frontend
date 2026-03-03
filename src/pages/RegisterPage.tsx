@@ -19,6 +19,8 @@ type RegisterPageProps = {
   onSubmit: (event: FormEvent<HTMLFormElement>) => Promise<void>
   notice: Notice | null
   onDismissNotice: () => void
+  blurredFields: Set<string>
+  onBlur: (fieldName: string) => void
 }
 
 export function RegisterPage({
@@ -36,6 +38,8 @@ export function RegisterPage({
   onSubmit,
   notice,
   onDismissNotice,
+  blurredFields,
+  onBlur,
 }: RegisterPageProps) {
   return (
     <div className="min-h-dvh bg-rose-50 text-rose-800">
@@ -68,6 +72,8 @@ export function RegisterPage({
             displayNameAvailability={displayNameAvailability}
             isSubmitting={isSubmitting}
             onSubmit={onSubmit}
+            blurredFields={blurredFields}
+            onBlur={onBlur}
           />
         </div>
       </main>
