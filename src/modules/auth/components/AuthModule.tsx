@@ -349,7 +349,7 @@ export function AuthModule() {
     }
 
     if (!isValidDisplayName(displayName)) {
-      return 'Must start with @ followed by 3–29 letters, numbers or underscores.'
+      return 'Must start with @ followed by 2–29 letters, numbers or underscores.'
     }
 
     return null
@@ -680,7 +680,7 @@ export function AuthModule() {
 
     const displayName = profileDisplayName.trim()
     if (!isValidDisplayName(displayName)) {
-      showNotice('Must start with @ followed by 3–29 letters, numbers or underscores.', 'error')
+      showNotice('Must start with @ followed by 2–29 letters, numbers or underscores.', 'error')
       return
     }
 

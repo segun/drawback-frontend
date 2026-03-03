@@ -214,7 +214,7 @@ export function RegisterForm({
                   clipRule="evenodd"
                 />
               </svg>
-              Must start with @ followed by 3–29 letters, numbers or underscores
+              Must start with @ followed by 2–29 letters, numbers or underscores
             </p>
           )}
           {blurredFields.has('displayName') && displayNameAvailability === 'checking' && (
