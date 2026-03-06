@@ -56,7 +56,7 @@ export function Header({ isLoggedIn, onMenuClick, onLogout, onProfileClick }: He
           className="rounded-md border border-rose-300 hover:opacity-80 transition-opacity"
         >
           <img
-            src="/images/logo/logo_main.jpg"
+            src="/images/logo/logo_main.png"
             alt="DrawkcaB logo"
             className={`${isLoggedIn ? 'h-10 w-32' : 'h-12 w-36'} rounded-md border border-rose-300 object-cover`}
           />
