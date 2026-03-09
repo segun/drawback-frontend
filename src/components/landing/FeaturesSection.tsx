@@ -10,12 +10,12 @@ const features = [
   {
     icon: Users,
     title: "Discover People",
-    description: "Find and connect with other artists on the platform. Start a drawing chat in seconds.",
+    description: "Find and connect with other people on the platform. Start a drawing chat in seconds.",
   },
   {
     icon: Paintbrush,
     title: "Dual Canvas",
-    description: "Two canvases, two artists. Draw simultaneously and watch each other's creations unfold.",
+    description: "Two canvases, two people. Draw simultaneously and watch each other's creations unfold.",
   },
   {
     icon: Globe,

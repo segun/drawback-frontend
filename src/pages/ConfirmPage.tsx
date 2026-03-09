@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Header } from '../components/common/Header'
+import Navbar from '../components/landing/Navbar'
+import Footer from '../components/landing/Footer'
 import { useSearchParams } from "react-router-dom"
 
 export function ConfirmPage() {
@@ -25,9 +26,10 @@ export function ConfirmPage() {
   }, [searchParams])
 
   return (
-    <div className="min-h-dvh bg-rose-50 text-rose-800">
-      <Header isLoggedIn={false} />
-      <main className="mx-auto max-w-xl px-4 pb-8">
+    <div className="flex flex-col min-h-screen bg-background">
+      <Navbar />
+      <main className="flex-1 pt-24 pb-12">
+        <div className="container mx-auto px-6 max-w-2xl">
         <div className="rounded-xl border border-rose-300 bg-rose-100 p-4 shadow-sm shadow-rose-300/30">
           {status === 'success' && (
             <div className="rounded-md border border-green-300 bg-green-100 p-4">
@@ -47,7 +49,9 @@ export function ConfirmPage() {
             </div>
           )}
         </div>
+        </div>
       </main>
+      <Footer />
     </div>
   )
 }

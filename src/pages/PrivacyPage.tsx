@@ -1,10 +1,12 @@
-import { Header } from '../components/common/Header'
+import Navbar from '../components/landing/Navbar'
+import Footer from '../components/landing/Footer'
 
 export function PrivacyPage() {
   return (
-    <div className="min-h-dvh bg-rose-50 text-rose-800">
-      <Header isLoggedIn={false} />
-      <main className="mx-auto max-w-4xl px-4 py-12 pb-20">
+    <div className="min-h-screen bg-background">
+      <Navbar />
+      <main className="pt-24 pb-12">
+        <div className="container mx-auto px-6 max-w-4xl">
         <article className="prose prose-sm prose-rose max-w-none space-y-6 text-rose-800">
           <div>
             <h1 className="mb-2 text-3xl font-bold text-rose-900">Privacy Policy</h1>
@@ -469,7 +471,9 @@ export function PrivacyPage() {
             <strong>End of Privacy Policy</strong>
           </p>
         </article>
+        </div>
       </main>
+      <Footer />
     </div>
   )
 }

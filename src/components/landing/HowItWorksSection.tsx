@@ -2,7 +2,7 @@ import { motion } from "framer-motion";
 
 const steps = [
   { number: "01", title: "Sign Up", description: "Create your account in seconds. No credit card, no friction." },
-  { number: "02", title: "Find a Friend", description: "Discover other users on the platform or invite someone with a link." },
+  { number: "02", title: "Find a Friend", description: "Discover other users on the platform or invite someone with their username." },
   { number: "03", title: "Start Drawing", description: "Both of you get a canvas. Draw in real-time, see each other's art live." },
 ];
 

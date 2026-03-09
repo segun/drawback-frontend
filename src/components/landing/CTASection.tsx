@@ -16,7 +16,7 @@ const CTASection = () => {
             Ready to draw?
           </h2>
           <p className="font-body text-lg text-primary-foreground/80 mb-8 max-w-md mx-auto">
-            Join the community of artists who chat through drawings. It's free to start.
+            Join the community of people who chat through drawings. It's free to start.
           </p>
           <div className="flex justify-center">
             <StoreButtonsInverted />
