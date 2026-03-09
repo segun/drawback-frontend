@@ -23,7 +23,6 @@ export function ResetPasswordPage() {
 
   const [resultStatus, setResultStatus] = useState<'success' | 'error' | null>(null)
   const [resultMessage, setResultMessage] = useState<string | null>(null)
-  const [resultEmail, setResultEmail] = useState<string | null>(null)
 
   const [email, setEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -64,12 +63,10 @@ export function ResetPasswordPage() {
       const result = await authApi.resetPassword(token, newPassword)
       setResultStatus(result.status)
       setResultMessage(result.message)
-      setResultEmail(result.email ?? trimmedEmail)
-    } catch (error: any) {
+    } catch (error: unknown) {
       const message = mapErrorToMessage(error)
       setResultStatus('error')
       setResultMessage(message)
-      setResultEmail(null)
     } finally {
       setIsSubmitting(false)
     }

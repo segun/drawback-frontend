@@ -40,7 +40,7 @@ export function NoticeBanner({ notice, onDismiss }: NoticeBannerProps) {
     }, TOAST_DURATION_MS)
 
     return () => clearTimeout(timer)
-  }, [notice])
+  }, [notice, onDismiss])
 
   if (!visible || !current) {
     return null

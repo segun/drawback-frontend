@@ -81,14 +81,14 @@ const HeroSection = () => {
             </div>
             {/* Canvas areas */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="aspect-[4/3] rounded-xl bg-canvas border-2 border-dashed border-canvas-border flex items-center justify-center">
-                <svg width="120" height="100" viewBox="0 0 120 100" className="text-primary/30">
+              <div className="aspect-4/3 rounded-xl bg-canvas border-2 border-dashed border-canvas-border flex items-center justify-center">
+                  <svg width="120" height="100" viewBox="0 0 120 100" className="text-primary/30">
                   <path d="M30 70 Q40 20 60 50 Q80 80 90 30" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" />
                   <circle cx="60" cy="60" r="15" stroke="currentColor" strokeWidth="2" fill="none" />
                 </svg>
               </div>
-              <div className="aspect-[4/3] rounded-xl bg-canvas border-2 border-dashed border-canvas-border flex items-center justify-center">
-                <svg width="120" height="100" viewBox="0 0 120 100" className="text-primary/20">
+              <div className="aspect-4/3 rounded-xl bg-canvas border-2 border-dashed border-canvas-border flex items-center justify-center">
+                  <svg width="120" height="100" viewBox="0 0 120 100" className="text-primary/20">
                   <path d="M20 80 L60 20 L100 80 Z" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                   <circle cx="60" cy="55" r="8" stroke="currentColor" strokeWidth="2" fill="none" />
                 </svg>
