@@ -1,19 +1,24 @@
 {
   "compilerOptions": {
-    "target": "ES2022",
-    "useDefineForClassFields": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
-    "module": "ESNext",
+    "allowJs": true,
+    "noImplicitAny": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ]
+    },
     "skipLibCheck": true,
-    "moduleResolution": "Bundler",
-    "allowImportingTsExtensions": false,
-    "resolveJsonModule": true,
-    "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-    "strict": true,
-    "noFallthroughCasesInSwitch": true,
-    "types": ["vite/client"]
+    "strictNullChecks": false
   },
-  "include": ["src"]
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.node.json"
+    }
+  ]
 }

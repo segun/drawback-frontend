@@ -1,5 +1,4 @@
 import { useState, useRef, useEffect } from 'react'
-import { useLocation } from 'wouter'
 import { Menu, User, LogOut } from 'lucide-react'
 
 type HeaderProps = {
@@ -11,7 +10,6 @@ type HeaderProps = {
 
 export function Header({ isLoggedIn, onMenuClick, onLogout, onProfileClick }: HeaderProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
-  const [, setLocation] = useLocation()
   const dropdownRef = useRef<HTMLDivElement>(null)
 
   // Close dropdown when clicking outside
@@ -33,7 +31,6 @@ export function Header({ isLoggedIn, onMenuClick, onLogout, onProfileClick }: He
     if (onProfileClick) {
       onProfileClick()
     } else {
-      setLocation('/dashboard')
     }
   }
 
@@ -51,7 +48,6 @@ export function Header({ isLoggedIn, onMenuClick, onLogout, onProfileClick }: He
       >
         <button
           type="button"
-          onClick={() => setLocation('/')}
           aria-label="Home"
           className="rounded-md border border-rose-300 hover:opacity-80 transition-opacity"
         >
