@@ -10,7 +10,7 @@ const Footer = () => {
       <div className="container mx-auto px-6">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-3">
-            <img src={logo} alt="DrawkcaB" className="h-6" />
+            <img src={logo} alt="DrawkcaB" className="h-12" />
           </div>
           <p className="font-body text-sm text-muted-foreground">
             © {new Date().getFullYear()} DrawkcaB. All rights reserved.
