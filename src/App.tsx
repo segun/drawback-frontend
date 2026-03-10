@@ -1,25 +1,34 @@
-import { Router, Route, Switch, Redirect } from 'wouter'
-import { AuthModule } from './modules/auth/components/AuthModule'
-import { MainPage } from './pages/MainPage'
-import { PrivacyPage } from './pages/PrivacyPage'
+import { ConfirmPage } from "./pages/ConfirmPage";
+import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { PrivacyPage } from "./pages/PrivacyPage";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
+import Index from "./pages/Index";
+import NotFound from "./pages/NotFound";
+import { Toaster as Sonner } from "./components/ui/sonner";
+import { Toaster } from "./components/ui/sonner";
+import { TooltipProvider } from "./components/ui/tooltip";
+
+const queryClient = new QueryClient();
 
 function App() {
-  return (
-    <Router>
-      <Switch>
-        <Route path="/" component={MainPage} />
-        <Route path="/dashboard" component={AuthModule} />
-        <Route path="/register" component={AuthModule} />
-        <Route path="/login" component={AuthModule} />
-        <Route path="/confirm" component={AuthModule} />
-        <Route path="/reset-password" component={AuthModule} />
-        <Route path="/privacy" component={PrivacyPage} />
-        <Route>
-          <Redirect to="/" />
-        </Route>
-      </Switch>
-    </Router>
-  )
+    return (
+        <QueryClientProvider client={queryClient}>
+            <TooltipProvider>
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                    <Routes>
+                        <Route path="/" element={<Index />} />
+                        <Route path="/confirm" element={<ConfirmPage />} />
+                        <Route path="/reset-password" element={<ResetPasswordPage />} />
+                        <Route path="/privacy" element={<PrivacyPage />} />
+                        <Route path="*" element={<NotFound />} />
+                    </Routes>
+                </BrowserRouter>
+            </TooltipProvider>
+        </QueryClientProvider>
+    );
 }
 
-export default App
+export default App;

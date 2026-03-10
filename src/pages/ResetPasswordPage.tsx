@@ -1,27 +1,20 @@
-import { useLocation, useSearch } from 'wouter'
-import { useState, type FormEvent } from 'react'
-import { Header } from '../components/common/Header'
+import { useState, useMemo, type FormEvent } from 'react'
+import Navbar from '../components/landing/Navbar'
+import Footer from '../components/landing/Footer'
 import { NoticeBanner, type Notice } from '../common/components/NoticeBanner'
 import { EMAIL_MAX, PASSWORD_MAX, PASSWORD_MIN } from '../modules/auth/constants'
-import type { ResetPasswordResponse } from '../modules/auth/api/authApi'
+import { createAuthApi } from '../modules/auth/api/authApi'
+import { mapErrorToMessage } from '../common/utils/errorMapper'
+import { useSearchParams } from "react-router-dom"
 
-type ResetPasswordPageProps = {
-  notice: Notice | null
-  onDismissNotice: () => void
-  setNotice: (notice: Notice) => void
-  onResetPassword: (token: string, email: string, password: string) => Promise<ResetPasswordResponse>
-  setLoginEmail: (email: string) => void
-}
-
-export function ResetPasswordPage({
-  notice,
-  onDismissNotice,
-  setNotice,
-  onResetPassword,
-  setLoginEmail,
-}: ResetPasswordPageProps) {
-  const [, setLocation] = useLocation()
-  const searchParams = useSearch()
+export function ResetPasswordPage() {
+  const [searchParams] = useSearchParams()
+  const [notice, setNotice] = useState<Notice | null>(null)
+  
+  const authApi = useMemo(
+    () => createAuthApi(import.meta.env.VITE_BACKEND_URL),
+    []
+  )
 
   const [token] = useState<string | null>(() => {
     const search = new URLSearchParams(searchParams)
@@ -30,7 +23,6 @@ export function ResetPasswordPage({
 
   const [resultStatus, setResultStatus] = useState<'success' | 'error' | null>(null)
   const [resultMessage, setResultMessage] = useState<string | null>(null)
-  const [resultEmail, setResultEmail] = useState<string | null>(null)
 
   const [email, setEmail] = useState('')
   const [newPassword, setNewPassword] = useState('')
@@ -68,30 +60,24 @@ export function ResetPasswordPage({
 
     setIsSubmitting(true)
     try {
-      const result = await onResetPassword(token, trimmedEmail, newPassword)
+      const result = await authApi.resetPassword(token, newPassword)
       setResultStatus(result.status)
       setResultMessage(result.message)
-      setResultEmail(result.email ?? trimmedEmail)
-    } catch (error: any) {
-      const message = error?.message || 'An error occurred while resetting your password.'
+    } catch (error: unknown) {
+      const message = mapErrorToMessage(error)
       setResultStatus('error')
       setResultMessage(message)
-      setResultEmail(null)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  const handleGoToLogin = () => {
-    setLoginEmail(resultEmail || email)
-    setLocation('/login')
-  }
-
   return (
-    <div className="min-h-dvh bg-rose-50 text-rose-800">
-      <Header isLoggedIn={false} />
-      <main className="mx-auto max-w-xl px-4 pb-8">
-        {notice && <NoticeBanner notice={notice} onDismiss={onDismissNotice} />}
+    <div className="flex flex-col min-h-screen bg-background">
+      <Navbar />
+      <main className="flex-1 pt-24 pb-12">
+        <div className="container mx-auto px-6 max-w-2xl"> 
+        {notice && <NoticeBanner notice={notice} onDismiss={() => setNotice(null)} />}
         <div className="rounded-xl border border-rose-300 bg-rose-100 p-4 shadow-sm shadow-rose-300/30">
           {token && !resultStatus && (
             <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
@@ -145,46 +131,30 @@ export function ResetPasswordPage({
           {resultStatus && (
             <div className="flex flex-col gap-4">
               {resultStatus === 'success' ? (
-                <>
-                  <div className="rounded-md border border-green-300 bg-green-100 p-4">
-                    <h2 className="mb-2 text-lg font-semibold text-green-700">
-                      Password Reset Successful
-                    </h2>
-                    <p className="text-sm text-green-600">
-                      {resultMessage || 'Your password has been reset successfully. You can now log in with your new password.'}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={handleGoToLogin}
-                    className="rounded-md border border-rose-700 bg-rose-700 px-4 py-2 font-medium text-rose-100 hover:bg-rose-800"
-                  >
-                    Go to Login
-                  </button>
-                </>
+                <div className="rounded-md border border-green-300 bg-green-100 p-4">
+                  <h2 className="mb-2 text-lg font-semibold text-green-700">
+                    Password Reset Successful
+                  </h2>
+                  <p className="text-sm text-green-600">
+                    Password reset successfully. Proceed to the app to login.
+                  </p>
+                </div>
               ) : (
-                <>
-                  <div className="rounded-md border border-red-300 bg-red-100 p-4">
-                    <h2 className="mb-2 text-lg font-semibold text-red-700">
-                      Password Reset Failed
-                    </h2>
-                    <p className="text-sm text-red-600">
-                      {resultMessage || 'An error occurred while resetting your password. Please try again.'}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setLocation('/login')}
-                    className="rounded-md border border-rose-700 bg-rose-700 px-4 py-2 font-medium text-rose-100 hover:bg-rose-800"
-                  >
-                    Try Again
-                  </button>
-                </>
+                <div className="rounded-md border border-red-300 bg-red-100 p-4">
+                  <h2 className="mb-2 text-lg font-semibold text-red-700">
+                    Password Reset Failed
+                  </h2>
+                  <p className="text-sm text-red-600">
+                    {resultMessage || 'An error occurred while resetting your password. Please try again.'}
+                  </p>
+                </div>
               )}
             </div>
           )}
         </div>
+        </div>
       </main>
+      <Footer />
     </div>
   )
 }
