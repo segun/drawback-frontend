@@ -1,5 +1,6 @@
 import { ConfirmPage } from "./pages/ConfirmPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
+import { DeleteAccountPage } from "./pages/DeleteAccountPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -22,6 +23,7 @@ function App() {
                         <Route path="/" element={<Index />} />
                         <Route path="/confirm" element={<ConfirmPage />} />
                         <Route path="/reset-password" element={<ResetPasswordPage />} />
+                        <Route path="/delete-my-account" element={<DeleteAccountPage />} />
                         <Route path="/privacy" element={<PrivacyPage />} />
                         <Route path="*" element={<NotFound />} />
                     </Routes>

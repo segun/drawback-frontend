@@ -50,6 +50,10 @@ export type ResetPasswordResponse = {
   email?: string
 }
 
+export type LoginAndDeleteResponse = {
+  message: string
+}
+
 const normalizeDisplayName = (displayName: string): string => displayName.trim()
 
 export const createAuthApi = (baseUrl: string) => {
@@ -162,6 +166,23 @@ export const createAuthApi = (baseUrl: string) => {
     )
   }
 
+  const deleteAccount = async (email: string, password: string): Promise<LoginAndDeleteResponse> => {
+    const result = await request<LoginAndDeleteResponse>(
+      '/auth/login-and-delete',
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          email: email.trim(),
+          password,
+        }),
+      },
+      false,
+    )
+
+    clearAccessToken()
+    return result
+  }
+
   return {
     register,
     login,
@@ -169,6 +190,7 @@ export const createAuthApi = (baseUrl: string) => {
     checkDisplayNameAvailability,
     forgotPassword,
     resetPassword,
+    deleteAccount,
     getAccessToken,
     setAccessToken,
     logout: clearAccessToken,
