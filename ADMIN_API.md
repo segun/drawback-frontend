@@ -5,25 +5,6 @@
 
 ---
 
-## Authentication
-
-All admin endpoints require:
-1. Valid JWT token with `role: "ADMIN"` in the payload
-2. Authorization header: `Authorization: Bearer <adminToken>`
-
-**Creating an admin user:**
-```sql
-UPDATE users SET role = 'ADMIN' WHERE email = 'admin@example.com';
-```
-
-**Error responses for non-admin users:**
-| Status | Reason |
-|---|---|
-| `401` | No token or invalid token |
-| `403` | Token valid but user is not an admin |
-
-**Rate limiting:** All admin endpoints are throttled at **100 requests per 60 seconds** per admin user.
-
 ---
 
 ## User Management
