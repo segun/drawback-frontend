@@ -1,13 +1,12 @@
 import logo from "/images/logo/logo_main.png";
 import { StoreButtons } from "./StoreButtons";
 import { useLocation } from "react-router-dom";
-import { Link } from "react-router-dom";
 
 const Navbar = () => {
   const location = useLocation();
   
   // Hide Features and How it works links on these pages
-  const hideNavLinks = ["/confirm", "/reset-password", "/delete-my-account", "/privacy"].includes(location.pathname);
+  const hideNavLinks = ["/confirm", "/reset-password", "/delete-my-account", "/privacy", "/csae"].includes(location.pathname);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
@@ -22,12 +21,6 @@ const Navbar = () => {
           </div>
         )}
         <div className="hidden sm:flex items-center gap-3">
-          <Link
-            to="/delete-my-account"
-            className="text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Delete Account
-          </Link>
           <StoreButtons size="small" />
         </div>
       </div>

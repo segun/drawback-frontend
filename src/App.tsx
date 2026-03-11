@@ -2,8 +2,8 @@ import { ConfirmPage } from "./pages/ConfirmPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { DeleteAccountPage } from "./pages/DeleteAccountPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
+import { CsaePage } from "./pages/CsaePage";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
-import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Index from "./pages/Index";
@@ -11,6 +11,7 @@ import NotFound from "./pages/NotFound";
 import { Toaster as Sonner } from "./components/ui/sonner";
 import { Toaster } from "./components/ui/sonner";
 import { TooltipProvider } from "./components/ui/tooltip";
+import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ function App() {
                         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
                         <Route path="/delete-my-account" element={<DeleteAccountPage />} />
                         <Route path="/privacy" element={<PrivacyPage />} />
+                        <Route path="/csae" element={<CsaePage />} />
                         <Route path="*" element={<NotFound />} />
                     </Routes>
                 </BrowserRouter>

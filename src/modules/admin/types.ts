@@ -1,6 +1,6 @@
 export type AdminUserMode = 'PUBLIC' | 'PRIVATE'
 export type AdminSearchField = 'email' | 'displayName'
-export type AdminViewMode = 'list' | 'filter' | 'search' | 'sockets'
+export type AdminViewMode = 'list' | 'filter' | 'search' | 'sockets' | 'reports' | 'sessionEvents'
 
 export type AdminUser = {
   id: string
@@ -119,4 +119,104 @@ export type PaginatedAdminSocketsResponse = {
 export type AdminExportCsvResponse = {
   blob: Blob
   filename: string
+}
+
+export type AdminReportStatus = 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED' | 'DISMISSED'
+
+export type AdminReportType =
+  | 'CSAE'
+  | 'HARASSMENT'
+  | 'INAPPROPRIATE_CONTENT'
+  | 'SPAM'
+  | 'IMPERSONATION'
+  | 'OTHER'
+
+export type AdminReportUser = {
+  id: string
+  displayName: string
+  email: string
+}
+
+export type AdminReport = {
+  id: string
+  reporter: AdminReportUser
+  reportedUser: AdminReportUser
+  reporterId?: string
+  reportedUserId?: string
+  reportType: AdminReportType
+  description: string
+  chatRequestId: string | null
+  sessionContext: string | null
+  status: AdminReportStatus
+  adminNotes: string | null
+  resolvedBy: string | null
+  resolvedAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type AdminReportsQuery = {
+  status?: AdminReportStatus
+  reportType?: AdminReportType
+  reportedUser?: string
+  reporter?: string
+}
+
+export type AdminReportStats = {
+  total: number
+  pending: number
+  underReview: number
+  resolved: number
+  dismissed: number
+}
+
+export type UpdateAdminReportPayload = {
+  status: AdminReportStatus
+  adminNotes?: string
+}
+
+export type AdminSessionEventType = 'CONNECT' | 'DISCONNECT' | 'CHAT_JOINED' | 'CHAT_LEFT'
+
+export type AdminSessionEventMetadata = {
+  socketId?: string
+  userAgent?: string
+  roomId?: string
+  requestId?: string
+  [key: string]: unknown
+}
+
+export type AdminSessionEvent = {
+  id: string
+  userId: string
+  user?: {
+    id: string
+    displayName: string
+    email: string
+  } | null
+  eventType: AdminSessionEventType
+  ipAddress: string | null
+  metadata: AdminSessionEventMetadata | null
+  createdAt: string
+}
+
+export type AdminSessionEventsQuery = {
+  user?: string
+  socketId?: string
+  roomId?: string
+  requestId?: string
+  eventType?: AdminSessionEventType
+  startDate?: string
+  endDate?: string
+}
+
+export type AdminSessionEventsResponse = {
+  events: AdminSessionEvent[]
+  total: number
+}
+
+export type AdminSessionEventStats = {
+  total: number
+  last24Hours: number
+  last7Days: number
+  byType: Record<AdminSessionEventType, number>
 }

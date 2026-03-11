@@ -34,6 +34,7 @@ type AdminControlsProps = {
   onNextPage: () => void
   onRefresh: () => void
   onExportUsersCsv: () => void
+  canExportUsersCsv: boolean
   isLoading: boolean
   isExporting: boolean
 }
@@ -83,6 +84,7 @@ export function AdminControls({
   onNextPage,
   onRefresh,
   onExportUsersCsv,
+  canExportUsersCsv,
   isLoading,
   isExporting,
 }: AdminControlsProps) {
@@ -111,10 +113,16 @@ export function AdminControls({
         <button type="button" className={modeButtonClass(viewMode === 'sockets')} onClick={() => onViewModeChange('sockets')}>
           Sockets
         </button>
+        <button type="button" className={modeButtonClass(viewMode === 'reports')} onClick={() => onViewModeChange('reports')}>
+          Reports
+        </button>
+        <button type="button" className={modeButtonClass(viewMode === 'sessionEvents')} onClick={() => onViewModeChange('sessionEvents')}>
+          Session Events
+        </button>
         <button
           type="button"
           onClick={onExportUsersCsv}
-          disabled={isExporting}
+          disabled={!canExportUsersCsv || isExporting}
           className="rounded-md border border-rose-700 bg-transparent px-3 py-1 text-sm font-medium text-rose-700 hover:bg-rose-200/60 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {isExporting ? 'Exporting...' : 'Export Users CSV'}
@@ -291,7 +299,7 @@ export function AdminControls({
           </button>
         </div>
 
-        <span className="ml-auto text-sm text-rose-800">Total users: {total}</span>
+        <span className="ml-auto text-sm text-rose-800">Total records: {total}</span>
       </div>
     </section>
   )

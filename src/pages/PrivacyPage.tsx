@@ -11,7 +11,7 @@ export function PrivacyPage() {
           <div>
             <h1 className="mb-2 text-3xl font-bold text-rose-900">Privacy Policy</h1>
             <p className="text-sm text-rose-600">
-              <strong>Last Updated:</strong> February 25, 2026
+              <strong>Last Updated:</strong> March 11, 2026
             </p>
           </div>
 
@@ -305,6 +305,14 @@ export function PrivacyPage() {
               <li>
                 We may retain information longer if required by law or for legitimate business purposes
               </li>
+              <li>
+                Session logs (user IDs, IP addresses, timestamps) may be retained for up to 90 days
+                for safety and abuse prevention purposes
+              </li>
+              <li>
+                In cases of reported abuse or suspected child sexual abuse and exploitation (CSAE), we
+                preserve relevant data as required by law and for cooperation with law enforcement
+              </li>
             </ul>
           </section>
 
@@ -340,7 +348,36 @@ export function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-rose-900">10. International Data Transfers</h2>
+            <h2 className="text-2xl font-bold text-rose-900">10. Child Safety and Abuse Prevention</h2>
+            <p>
+              Drawback maintains a zero-tolerance policy regarding child sexual abuse and exploitation
+              (CSAE). We prohibit content or behavior that exploits, endangers, or sexualizes minors.
+            </p>
+            <h3 className="text-xl font-semibold text-rose-900">10.1 Reporting and Response</h3>
+            <ul className="ml-4 list-inside list-disc space-y-1 text-sm">
+              <li>Users can report concerning behavior in-app or by email</li>
+              <li>
+                Safety contacts: <strong>safety@drawback.chat</strong> and <strong>abuse@drawback.chat</strong>
+              </li>
+              <li>We review reports within 24 hours and prioritize CSAE reports</li>
+              <li>
+                We preserve evidence and cooperate with law enforcement and mandatory reporting obligations
+              </li>
+            </ul>
+            <h3 className="text-xl font-semibold text-rose-900">10.2 Data Used for Safety Investigations</h3>
+            <ul className="ml-4 list-inside list-disc space-y-1 text-sm">
+              <li>Session metadata (timestamps, user IDs, and IP addresses)</li>
+              <li>Chat request history and participant information</li>
+              <li>Account details of reported users</li>
+            </ul>
+            <h3 className="text-xl font-semibold text-rose-900">10.3 Learn More</h3>
+            <p className="text-sm">
+              See our full CSAE Standards: <a href="/csae">Child Safety and Abuse Prevention</a>
+            </p>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-2xl font-bold text-rose-900">11. International Data Transfers</h2>
             <p>
               If you access Drawback from outside the jurisdiction where our servers are located, your
               information may be transferred to, stored in, and processed in jurisdictions with different
@@ -350,7 +387,7 @@ export function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-rose-900">11. Third-Party Links</h2>
+            <h2 className="text-2xl font-bold text-rose-900">12. Third-Party Links</h2>
             <p>
               Drawback may contain links to third-party websites and services not operated by us. This
               Privacy Policy does not apply to third-party services, and we are not responsible for their
@@ -360,7 +397,7 @@ export function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-rose-900">12. Do Not Track</h2>
+            <h2 className="text-2xl font-bold text-rose-900">13. Do Not Track</h2>
             <p>
               Some browsers include a "Do Not Track" feature. Currently, there is no industry standard for
               recognizing Do Not Track signals. Drawback does not respond to Do Not Track browser signals, but
@@ -369,7 +406,7 @@ export function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-rose-900">13. California Privacy Rights</h2>
+            <h2 className="text-2xl font-bold text-rose-900">14. California Privacy Rights</h2>
             <p>
               <strong>For California Residents (CCPA):</strong>
             </p>
@@ -380,13 +417,13 @@ export function PrivacyPage() {
               <li>You have the right to non-discrimination for exercising your privacy rights</li>
             </ul>
             <p className="text-sm">
-              To submit a request, contact us using the information in Section 16. We will verify your identity
+              To submit a request, contact us using the information in Section 17. We will verify your identity
               and respond within 45 days.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-rose-900">14. European Union Privacy Rights</h2>
+            <h2 className="text-2xl font-bold text-rose-900">15. European Union Privacy Rights</h2>
             <p>
               <strong>For EU Residents (GDPR):</strong>
             </p>
@@ -398,13 +435,13 @@ export function PrivacyPage() {
               <li>You have the right to lodge a complaint with your supervisory authority</li>
             </ul>
             <p className="text-sm">
-              To submit a request, contact us using the information in Section 16. We will respond within 30
+              To submit a request, contact us using the information in Section 17. We will respond within 30
               days.
             </p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-rose-900">15. Updates to This Privacy Policy</h2>
+            <h2 className="text-2xl font-bold text-rose-900">16. Updates to This Privacy Policy</h2>
             <p>
               We may update this Privacy Policy from time to time to reflect changes in our practices,
               technology, applicable laws, or other factors. When we make material changes, we will:
@@ -423,24 +460,26 @@ export function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-rose-900">16. Contact Us</h2>
+            <h2 className="text-2xl font-bold text-rose-900">17. Contact Us</h2>
             <p>
               If you have questions, concerns, or requests regarding this Privacy Policy or our privacy
               practices, please contact us:
             </p>
             <p className="text-sm font-semibold text-rose-900">
-              <strong>Email:</strong> support@drawback.chat
+              <strong>General Support:</strong> support@drawback.chat
             </p>
+            <p className="text-sm font-semibold text-rose-900"><strong>Safety:</strong> safety@drawback.chat</p>
+            <p className="text-sm font-semibold text-rose-900"><strong>Abuse:</strong> abuse@drawback.chat</p>
             <p className="text-sm">We will respond to your inquiry within 30 days of receipt.</p>
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-rose-900">17. Additional Information by Jurisdiction</h2>
+            <h2 className="text-2xl font-bold text-rose-900">18. Additional Information by Jurisdiction</h2>
 
-            <h3 className="text-xl font-semibold text-rose-900">17.1 United Kingdom (GDPR/DPA 2018)</h3>
-            <p className="text-sm">You have the same rights as EU residents listed in Section 14.</p>
+            <h3 className="text-xl font-semibold text-rose-900">18.1 United Kingdom (GDPR/DPA 2018)</h3>
+            <p className="text-sm">You have the same rights as EU residents listed in Section 15.</p>
 
-            <h3 className="text-xl font-semibold text-rose-900">17.2 Canada (PIPEDA)</h3>
+            <h3 className="text-xl font-semibold text-rose-900">18.2 Canada (PIPEDA)</h3>
             <ul className="ml-4 list-inside list-disc space-y-1 text-sm">
               <li>You have the right to access and request correction of your personal information</li>
               <li>
@@ -448,7 +487,7 @@ export function PrivacyPage() {
               </li>
             </ul>
 
-            <h3 className="text-xl font-semibold text-rose-900">17.3 Australia (Privacy Act 1988)</h3>
+            <h3 className="text-xl font-semibold text-rose-900">18.3 Australia (Privacy Act 1988)</h3>
             <ul className="ml-4 list-inside list-disc space-y-1 text-sm">
               <li>You have the right to request access and correction of your personal information</li>
               <li>
@@ -458,7 +497,7 @@ export function PrivacyPage() {
           </section>
 
           <section className="space-y-4">
-            <h2 className="text-2xl font-bold text-rose-900">18. Acknowledgement</h2>
+            <h2 className="text-2xl font-bold text-rose-900">19. Acknowledgement</h2>
             <p>
               By using Drawback, you acknowledge that you have read this Privacy Policy and agree to its
               terms. If you do not agree, please discontinue your use of the Service.

@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 const Footer = () => {
   const location = useLocation();
   const isPrivacyPage = location.pathname === '/privacy';
+  const isCsaePage = location.pathname === '/csae';
 
   return (
     <footer className="border-t border-border py-4 bg-muted">
@@ -21,6 +22,13 @@ const Footer = () => {
             ) : (
               <a href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
                 Privacy
+              </a>
+            )}
+            {isCsaePage ? (
+              <span className="text-muted-foreground/50 cursor-not-allowed">CSAE</span>
+            ) : (
+              <a href="/csae" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                CSAE
               </a>
             )}
           </div>

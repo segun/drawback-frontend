@@ -7,6 +7,13 @@ import {
   ADMIN_MIN_LIMIT,
 } from '../constants'
 import type {
+  AdminReport,
+  AdminReportStats,
+  AdminReportsQuery,
+  AdminSessionEvent,
+  AdminSessionEventsResponse,
+  AdminSessionEventStats,
+  AdminSessionEventsQuery,
   AdminExportCsvResponse,
   AdminExportUsersQuery,
   AdminFilterUsersQuery,
@@ -19,6 +26,7 @@ import type {
   PaginatedAdminUsersResponse,
   ResetPasswordsPayload,
   ResetPasswordsResponse,
+  UpdateAdminReportPayload,
   UnbanUsersPayload,
   UnbanUsersResponse,
 } from '../types'
@@ -61,6 +69,27 @@ const buildPaginationQuery = (query: { page?: number; limit?: number } = {}): UR
   const params = new URLSearchParams()
   appendQueryParam(params, 'page', normalizePage(query.page))
   appendQueryParam(params, 'limit', clampLimit(query.limit))
+  return params
+}
+
+const buildReportsQuery = (query: AdminReportsQuery = {}): URLSearchParams => {
+  const params = new URLSearchParams()
+  appendQueryParam(params, 'status', query.status)
+  appendQueryParam(params, 'reportType', query.reportType)
+  appendQueryParam(params, 'reportedUser', query.reportedUser?.trim() || undefined)
+  appendQueryParam(params, 'reporter', query.reporter?.trim() || undefined)
+  return params
+}
+
+const buildSessionEventsQuery = (query: AdminSessionEventsQuery = {}): URLSearchParams => {
+  const params = new URLSearchParams()
+  appendQueryParam(params, 'user', query.user?.trim() || undefined)
+  appendQueryParam(params, 'socketId', query.socketId?.trim() || undefined)
+  appendQueryParam(params, 'roomId', query.roomId?.trim() || undefined)
+  appendQueryParam(params, 'requestId', query.requestId?.trim() || undefined)
+  appendQueryParam(params, 'eventType', query.eventType)
+  appendQueryParam(params, 'startDate', query.startDate?.trim() || undefined)
+  appendQueryParam(params, 'endDate', query.endDate?.trim() || undefined)
   return params
 }
 
@@ -176,6 +205,62 @@ export const createAdminApi = (baseUrl: string) => {
     return requestBlob(withQuery('/admin/users/export', params))
   }
 
+  const listReports = async (query: AdminReportsQuery = {}): Promise<AdminReport[]> => {
+    const params = buildReportsQuery(query)
+    return authApi.request<AdminReport[]>(withQuery('/reports/admin', params))
+  }
+
+  const getReportStats = async (): Promise<AdminReportStats> => {
+    return authApi.request<AdminReportStats>('/reports/admin/stats')
+  }
+
+  const updateReport = async (reportId: string, payload: UpdateAdminReportPayload): Promise<AdminReport> => {
+    return authApi.request<AdminReport>(`/reports/admin/${reportId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  const deleteReport = async (reportId: string): Promise<void> => {
+    await authApi.request<null>(`/reports/admin/${reportId}`, {
+      method: 'DELETE',
+    })
+  }
+
+  const listSessionEvents = async (query: AdminSessionEventsQuery = {}): Promise<AdminSessionEventsResponse> => {
+    const params = buildSessionEventsQuery(query)
+    const raw = await authApi.request<
+      | AdminSessionEvent[]
+      | {
+          events?: AdminSessionEvent[]
+          total?: number
+          data?: AdminSessionEvent[]
+        }
+    >(withQuery('/admin/session-events', params))
+
+    if (Array.isArray(raw)) {
+      return {
+        events: raw,
+        total: raw.length,
+      }
+    }
+
+    const events = Array.isArray(raw.events)
+      ? raw.events
+      : Array.isArray(raw.data)
+        ? raw.data
+        : []
+
+    return {
+      events,
+      total: typeof raw.total === 'number' ? raw.total : events.length,
+    }
+  }
+
+  const getSessionEventStats = async (): Promise<AdminSessionEventStats> => {
+    return authApi.request<AdminSessionEventStats>('/admin/session-events/stats')
+  }
+
   const checkAdminAccess = async (): Promise<void> => {
     await listUsers({ page: 1, limit: 1 })
   }
@@ -190,6 +275,12 @@ export const createAdminApi = (baseUrl: string) => {
     unbanUsers,
     resetPasswords,
     exportUsersCsv,
+    listReports,
+    getReportStats,
+    updateReport,
+    deleteReport,
+    listSessionEvents,
+    getSessionEventStats,
     checkAdminAccess,
     logout: authApi.logout,
   }
