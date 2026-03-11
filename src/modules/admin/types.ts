@@ -1,6 +1,6 @@
 export type AdminUserMode = 'PUBLIC' | 'PRIVATE'
 export type AdminSearchField = 'email' | 'displayName'
-export type AdminViewMode = 'list' | 'filter' | 'search'
+export type AdminViewMode = 'list' | 'filter' | 'search' | 'sockets'
 
 export type AdminUser = {
   id: string
@@ -63,6 +63,8 @@ export type AdminFilterUsersQuery = {
   isActivated?: boolean
 }
 
+export type AdminExportUsersQuery = Omit<AdminFilterUsersQuery, 'page' | 'limit'>
+
 export type AdminSearchUsersQuery = {
   q: string
   searchField: AdminSearchField
@@ -94,4 +96,27 @@ export type ResetPasswordsPayload = {
 export type ResetPasswordsResponse = {
   emailsSent: number
   failed: string[]
+}
+
+export type AdminSocketConnection = {
+  userId: string
+  userEmail: string
+  userDisplayName: string
+  socketId: string
+  connectedAt: string
+  currentRoom: string | null
+  ipAddress: string
+  userAgent: string
+}
+
+export type PaginatedAdminSocketsResponse = {
+  data: AdminSocketConnection[]
+  total: number
+  page: number
+  limit: number
+}
+
+export type AdminExportCsvResponse = {
+  blob: Blob
+  filename: string
 }

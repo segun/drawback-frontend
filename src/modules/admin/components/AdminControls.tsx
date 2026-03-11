@@ -33,7 +33,9 @@ type AdminControlsProps = {
   onPrevPage: () => void
   onNextPage: () => void
   onRefresh: () => void
+  onExportUsersCsv: () => void
   isLoading: boolean
+  isExporting: boolean
 }
 
 const modeButtonClass = (active: boolean): string => {
@@ -80,7 +82,9 @@ export function AdminControls({
   onPrevPage,
   onNextPage,
   onRefresh,
+  onExportUsersCsv,
   isLoading,
+  isExporting,
 }: AdminControlsProps) {
   const handleSearchSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -103,6 +107,17 @@ export function AdminControls({
         </button>
         <button type="button" className={modeButtonClass(viewMode === 'search')} onClick={() => onViewModeChange('search')}>
           Search
+        </button>
+        <button type="button" className={modeButtonClass(viewMode === 'sockets')} onClick={() => onViewModeChange('sockets')}>
+          Sockets
+        </button>
+        <button
+          type="button"
+          onClick={onExportUsersCsv}
+          disabled={isExporting}
+          className="rounded-md border border-rose-700 bg-transparent px-3 py-1 text-sm font-medium text-rose-700 hover:bg-rose-200/60 disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          {isExporting ? 'Exporting...' : 'Export Users CSV'}
         </button>
         <button
           type="button"

@@ -14,6 +14,7 @@ import {
   type ModeFilterValue,
 } from '../modules/admin/components/AdminControls'
 import { AdminBatchActions } from '../modules/admin/components/AdminBatchActions'
+import { AdminSocketsTable } from '../modules/admin/components/AdminSocketsTable'
 import { AdminUserDetailPanel } from '../modules/admin/components/AdminUserDetailPanel'
 import { AdminUsersTable } from '../modules/admin/components/AdminUsersTable'
 import {
@@ -25,6 +26,7 @@ import {
 import type {
   AdminFilterUsersQuery,
   AdminSearchField,
+  AdminSocketConnection,
   AdminUser,
   AdminUserDetail,
   AdminViewMode,
@@ -90,9 +92,11 @@ export function AdminDashboardPage() {
   const [total, setTotal] = useState(0)
 
   const [users, setUsers] = useState<AdminUser[]>([])
+  const [sockets, setSockets] = useState<AdminSocketConnection[]>([])
   const [isLoadingUsers, setIsLoadingUsers] = useState(false)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [refreshToken, setRefreshToken] = useState(0)
+  const [isExportingUsersCsv, setIsExportingUsersCsv] = useState(false)
 
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set())
   const [isSubmittingAction, setIsSubmittingAction] = useState(false)
@@ -185,6 +189,7 @@ export function AdminDashboardPage() {
       if (viewMode === 'search') {
         if (!activeSearchQuery) {
           setUsers([])
+          setSockets([])
           setTotal(0)
           return
         }
@@ -195,14 +200,24 @@ export function AdminDashboardPage() {
           page,
           limit,
         })
+        setSockets([])
       } else if (viewMode === 'filter') {
         response = await adminApi.filterUsers({
           ...toApiFilterQuery(activeFilter),
           page,
           limit,
         })
+        setSockets([])
+      } else if (viewMode === 'sockets') {
+        const socketResponse = await adminApi.listSockets({ page, limit })
+        setSockets(socketResponse.data)
+        setUsers([])
+        setTotal(socketResponse.total)
+        setSelectedUserIds(new Set())
+        return
       } else {
         response = await adminApi.listUsers({ page, limit })
+        setSockets([])
       }
 
       setUsers(response.data)
@@ -242,11 +257,10 @@ export function AdminDashboardPage() {
   const handleViewModeChange = (nextMode: AdminViewMode) => {
     setViewMode(nextMode)
     setSelectedUserIds(new Set())
+    setSelectedUserDetail(null)
+    setUserDetailError(null)
     setPage(ADMIN_DEFAULT_PAGE)
-
-    if (nextMode === 'list') {
-      setLoadError(null)
-    }
+    setLoadError(null)
   }
 
   const handleApplySearch = () => {
@@ -280,6 +294,33 @@ export function AdminDashboardPage() {
 
   const handleRefresh = () => {
     setRefreshToken((value) => value + 1)
+  }
+
+  const handleExportUsersCsv = async () => {
+    setIsExportingUsersCsv(true)
+
+    try {
+      const exportResponse = await adminApi.exportUsersCsv(toApiFilterQuery(filterDraft))
+      const objectUrl = URL.createObjectURL(exportResponse.blob)
+      const anchor = document.createElement('a')
+      anchor.href = objectUrl
+      anchor.download = exportResponse.filename
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      URL.revokeObjectURL(objectUrl)
+
+      setNotice({ text: `Downloaded ${exportResponse.filename}.`, type: 'success' })
+    } catch (error: unknown) {
+      if (handleUnauthorizedError(error)) {
+        return
+      }
+
+      const message = mapErrorToMessage(error)
+      setNotice({ text: message, type: 'error' })
+    } finally {
+      setIsExportingUsersCsv(false)
+    }
   }
 
   const handleToggleUser = (userId: string, checked: boolean) => {
@@ -448,40 +489,54 @@ export function AdminDashboardPage() {
               onPrevPage={() => setPage((previous) => Math.max(1, previous - 1))}
               onNextPage={() => setPage((previous) => Math.min(totalPages, previous + 1))}
               onRefresh={handleRefresh}
+              onExportUsersCsv={() => void handleExportUsersCsv()}
               isLoading={isLoadingUsers}
+              isExporting={isExportingUsersCsv}
             />
 
-            <AdminBatchActions
-              selectedCount={selectedUserIds.size}
-              banReason={banReason}
-              isSubmitting={isSubmittingAction}
-              onBanReasonChange={setBanReason}
-              onBanSelected={() => void runBatchAction('ban')}
-              onUnbanSelected={() => void runBatchAction('unban')}
-              onResetPasswords={() => void runBatchAction('reset')}
-              onClearSelection={() => setSelectedUserIds(new Set())}
-            />
+            {viewMode !== 'sockets' && (
+              <AdminBatchActions
+                selectedCount={selectedUserIds.size}
+                banReason={banReason}
+                isSubmitting={isSubmittingAction}
+                onBanReasonChange={setBanReason}
+                onBanSelected={() => void runBatchAction('ban')}
+                onUnbanSelected={() => void runBatchAction('unban')}
+                onResetPasswords={() => void runBatchAction('reset')}
+                onClearSelection={() => setSelectedUserIds(new Set())}
+              />
+            )}
 
-            <AdminUsersTable
-              users={users}
-              isLoading={isLoadingUsers}
-              loadError={loadError}
-              selectedUserIds={selectedUserIds}
-              onToggleUser={handleToggleUser}
-              onToggleAllVisible={handleToggleAllVisible}
-              onViewDetails={(userId) => void handleViewDetails(userId)}
-            />
+            {viewMode === 'sockets' ? (
+              <AdminSocketsTable
+                sockets={sockets}
+                isLoading={isLoadingUsers}
+                loadError={loadError}
+              />
+            ) : (
+              <AdminUsersTable
+                users={users}
+                isLoading={isLoadingUsers}
+                loadError={loadError}
+                selectedUserIds={selectedUserIds}
+                onToggleUser={handleToggleUser}
+                onToggleAllVisible={handleToggleAllVisible}
+                onViewDetails={(userId) => void handleViewDetails(userId)}
+              />
+            )}
 
-            <AdminUserDetailPanel
-              user={selectedUserDetail}
-              isLoading={isLoadingUserDetail}
-              error={userDetailError}
-              onClose={() => {
-                setSelectedUserDetail(null)
-                setUserDetailError(null)
-                setIsLoadingUserDetail(false)
-              }}
-            />
+            {viewMode !== 'sockets' && (
+              <AdminUserDetailPanel
+                user={selectedUserDetail}
+                isLoading={isLoadingUserDetail}
+                error={userDetailError}
+                onClose={() => {
+                  setSelectedUserDetail(null)
+                  setUserDetailError(null)
+                  setIsLoadingUserDetail(false)
+                }}
+              />
+            )}
           </div>
         </div>
       </main>
