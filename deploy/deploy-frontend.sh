@@ -78,9 +78,11 @@ yarn build
 #   sudo chown -R $(whoami):www-data /var/www/html
 #   sudo chmod -R 775 /var/www/html
 log_info "Copying frontend app to web root..."
-rm -rf /var/www/html/*
 mkdir -p /var/www/html
-cp -r dist/* /var/www/html/
+# Remove existing deployed files including hidden entries.
+find /var/www/html -mindepth 1 -maxdepth 1 -exec rm -rf {} +
+# Copy all build artifacts, including dot-directories like .well-known.
+cp -a dist/. /var/www/html/
 
 log_info "Frontend deployment complete"
 echo ""
