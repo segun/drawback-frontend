@@ -1,0 +1,13 @@
+[
+  {
+    "relation": ["delegate_permission/common.get_login_creds"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "chat.drawback.flutter",
+      "sha256_cert_fingerprints": [
+        "21:D1:B2:10:A1:C2:C3:EA:A5:3A:D1:A5:03:6D:D0:7A:45:33:FA:D1:E7:A1:E5:30:F0:D8:D4:5C:12:02:0B:E8",
+        "40:00:D5:F2:03:61:24:84:E3:B2:53:1E:D6:2C:ED:56:76:DB:BD:6C:29:3D:5E:F7:29:57:DB:4A:51:53:89:CC"
+      ]
+    }
+  }
+]
