@@ -3,6 +3,7 @@ import { ResetPasswordPage } from "./pages/ResetPasswordPage";
 import { DeleteAccountPage } from "./pages/DeleteAccountPage";
 import { PrivacyPage } from "./pages/PrivacyPage";
 import { CsaePage } from "./pages/CsaePage";
+import { EulaPage } from "./pages/EulaPage";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -31,6 +32,7 @@ function App() {
                         <Route path="/delete-my-account" element={<DeleteAccountPage />} />
                         <Route path="/privacy" element={<PrivacyPage />} />
                         <Route path="/csae" element={<CsaePage />} />
+                        <Route path="/eula" element={<EulaPage />} />
                         <Route path="*" element={<NotFound />} />
                     </Routes>
                 </BrowserRouter>

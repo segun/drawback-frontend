@@ -5,6 +5,7 @@ const Footer = () => {
   const location = useLocation();
   const isPrivacyPage = location.pathname === '/privacy';
   const isCsaePage = location.pathname === '/csae';
+  const isEulaPage = location.pathname === '/eula';
 
   return (
     <footer className="border-t border-border py-4 bg-muted">
@@ -29,6 +30,13 @@ const Footer = () => {
             ) : (
               <a href="/csae" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
                 CSAE
+              </a>
+            )}
+            {isEulaPage ? (
+              <span className="text-muted-foreground/50 cursor-not-allowed">Terms</span>
+            ) : (
+              <a href="/eula" target="_blank" rel="noopener noreferrer" className="hover:text-foreground transition-colors">
+                Terms
               </a>
             )}
           </div>
