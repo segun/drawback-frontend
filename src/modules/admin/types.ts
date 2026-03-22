@@ -2,6 +2,20 @@ export type AdminUserMode = 'PUBLIC' | 'PRIVATE'
 export type AdminSearchField = 'email' | 'displayName'
 export type AdminViewMode = 'list' | 'filter' | 'search' | 'sockets' | 'reports' | 'sessionEvents'
 
+export type AdminAppConfigProvider = 'admob' | 'facebook' | (string & {})
+
+export type AdminAppConfig = {
+  ads: {
+    provider: AdminAppConfigProvider
+  }
+}
+
+export type UpdateAdminAppConfigPayload = {
+  ads?: {
+    provider?: AdminAppConfigProvider
+  }
+}
+
 export type AdminUser = {
   id: string
   email: string

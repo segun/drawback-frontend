@@ -2,12 +2,8 @@ import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react
 import { useNavigate } from 'react-router-dom'
 import Navbar from '../components/landing/Navbar'
 import Footer from '../components/landing/Footer'
-import { ApiError } from '../common/api/apiError'
 import { NoticeBanner, type Notice } from '../common/components/NoticeBanner'
 import { mapErrorToMessage } from '../common/utils/errorMapper'
-import { isValidAdminToken } from '../common/utils/jwt'
-import { clearAccessToken, getAccessToken } from '../common/utils/tokenStorage'
-import { createAdminApi } from '../modules/admin/api/adminApi'
 import {
   AdminControls,
   type BooleanFilterValue,
@@ -26,6 +22,8 @@ import {
   ADMIN_MIN_LIMIT,
 } from '../modules/admin/constants'
 import type {
+  AdminAppConfig,
+  AdminAppConfigProvider,
   AdminFilterUsersQuery,
   AdminReport,
   AdminReportStats,
@@ -40,6 +38,7 @@ import type {
   AdminUserDetail,
   AdminViewMode,
 } from '../modules/admin/types'
+import { useAdminSessionGuard } from '../modules/admin/hooks/useAdminSessionGuard'
 
 type FilterState = {
   mode: ModeFilterValue
@@ -64,11 +63,6 @@ type SessionEventFilterState = {
   eventType: AdminSessionEventType | 'ALL'
   startDate: string
   endDate: string
-}
-
-type AdminLoginRedirectState = {
-  noticeText: string
-  noticeType?: Notice['type']
 }
 
 const DEFAULT_FILTER_STATE: FilterState = {
@@ -97,6 +91,7 @@ const DEFAULT_SESSION_EVENT_FILTER_STATE: SessionEventFilterState = {
 }
 
 const ADMIN_REPORT_NOTES_MAX = 2000
+const DEFAULT_APP_CONFIG_PROVIDER: AdminAppConfigProvider = 'admob'
 
 const toBooleanFilter = (value: BooleanFilterValue): boolean | undefined => {
   if (value === 'ALL') {
@@ -168,11 +163,10 @@ const isPaginatedServerView = (viewMode: AdminViewMode): boolean => {
 }
 
 export function AdminDashboardPage() {
-  const adminApi = useMemo(() => createAdminApi(import.meta.env.VITE_BACKEND_URL), [])
   const navigate = useNavigate()
+  const { adminApi, handleUnauthorizedError, isAuthorized, logout } = useAdminSessionGuard()
 
   const [notice, setNotice] = useState<Notice | null>(null)
-  const [isAuthorized, setIsAuthorized] = useState(false)
 
   const [viewMode, setViewMode] = useState<AdminViewMode>('list')
   const [page, setPage] = useState(ADMIN_DEFAULT_PAGE)
@@ -217,6 +211,12 @@ export function AdminDashboardPage() {
   const [selectedUserDetail, setSelectedUserDetail] = useState<AdminUserDetail | null>(null)
   const [isLoadingUserDetail, setIsLoadingUserDetail] = useState(false)
   const [userDetailError, setUserDetailError] = useState<string | null>(null)
+  const [selectedUserAppConfig, setSelectedUserAppConfig] = useState<AdminAppConfig | null>(null)
+  const [selectedUserAppConfigProvider, setSelectedUserAppConfigProvider] = useState<AdminAppConfigProvider>(DEFAULT_APP_CONFIG_PROVIDER)
+  const [isLoadingUserAppConfig, setIsLoadingUserAppConfig] = useState(false)
+  const [userAppConfigError, setUserAppConfigError] = useState<string | null>(null)
+  const [isSavingUserAppConfig, setIsSavingUserAppConfig] = useState(false)
+  const [isClearingUserAppConfig, setIsClearingUserAppConfig] = useState(false)
 
   const visibleReports = useMemo(() => paginateData(reports, page, limit), [limit, page, reports])
   const visibleSessionEvents = useMemo(
@@ -225,63 +225,6 @@ export function AdminDashboardPage() {
   )
 
   const totalPages = Math.max(1, Math.ceil(total / limit))
-
-  const redirectToLogin = useCallback((state: AdminLoginRedirectState) => {
-    clearAccessToken()
-    navigate('/admin', { replace: true, state })
-  }, [navigate])
-
-  const handleUnauthorizedError = useCallback((error: unknown): boolean => {
-    if (!(error instanceof ApiError)) {
-      return false
-    }
-
-    if (error.status === 401) {
-      redirectToLogin({
-        noticeText: 'Your admin session has expired. Please sign in again.',
-        noticeType: 'error',
-      })
-      return true
-    }
-
-    if (error.status === 403) {
-      redirectToLogin({
-        noticeText: 'Admin access required.',
-        noticeType: 'error',
-      })
-      return true
-    }
-
-    return false
-  }, [redirectToLogin])
-
-  useEffect(() => {
-    if (!isValidAdminToken(getAccessToken())) {
-      redirectToLogin({
-        noticeText: 'Please sign in with an admin account.',
-        noticeType: 'error',
-      })
-      return
-    }
-
-    setIsAuthorized(true)
-  }, [redirectToLogin])
-
-  useEffect(() => {
-    if (!isAuthorized) {
-      return
-    }
-
-    const onUnauthorized = () => {
-      redirectToLogin({
-        noticeText: 'Your admin session has expired. Please sign in again.',
-        noticeType: 'error',
-      })
-    }
-
-    window.addEventListener('drawback:unauthorized', onUnauthorized)
-    return () => window.removeEventListener('drawback:unauthorized', onUnauthorized)
-  }, [isAuthorized, redirectToLogin])
 
   useEffect(() => {
     if (page > totalPages) {
@@ -561,11 +504,20 @@ export function AdminDashboardPage() {
     setSelectedUserDetail(null)
     setUserDetailError(null)
     setIsLoadingUserDetail(true)
+    setSelectedUserAppConfig(null)
+    setSelectedUserAppConfigProvider(DEFAULT_APP_CONFIG_PROVIDER)
+    setUserAppConfigError(null)
+    setIsLoadingUserAppConfig(true)
 
-    try {
-      const detail = await adminApi.getUserById(userId)
-      setSelectedUserDetail(detail)
-    } catch (error: unknown) {
+    const [detailResult, appConfigResult] = await Promise.allSettled([
+      adminApi.getUserById(userId),
+      adminApi.getUserAppConfig(userId),
+    ])
+
+    if (detailResult.status === 'fulfilled') {
+      setSelectedUserDetail(detailResult.value)
+    } else {
+      const error = detailResult.reason
       if (handleUnauthorizedError(error)) {
         return
       }
@@ -573,8 +525,85 @@ export function AdminDashboardPage() {
       const message = mapErrorToMessage(error)
       setUserDetailError(message)
       setNotice({ text: message, type: 'error' })
+    }
+
+    if (appConfigResult.status === 'fulfilled') {
+      setSelectedUserAppConfig(appConfigResult.value)
+      setSelectedUserAppConfigProvider(appConfigResult.value.ads.provider)
+    } else {
+      const error = appConfigResult.reason
+      if (handleUnauthorizedError(error)) {
+        return
+      }
+
+      const message = mapErrorToMessage(error)
+      setUserAppConfigError(message)
+      setNotice({ text: message, type: 'error' })
+    }
+
+    setIsLoadingUserDetail(false)
+    setIsLoadingUserAppConfig(false)
+  }
+
+  const refreshSelectedUserAppConfig = async (userId: string) => {
+    const appConfig = await adminApi.getUserAppConfig(userId)
+    setSelectedUserAppConfig(appConfig)
+    setSelectedUserAppConfigProvider(appConfig.ads.provider)
+    setUserAppConfigError(null)
+  }
+
+  const handleSaveUserAppConfig = async () => {
+    if (!selectedUserDetail) {
+      setNotice({ text: 'Load a user first.', type: 'error' })
+      return
+    }
+
+    setIsSavingUserAppConfig(true)
+    try {
+      const response = await adminApi.updateUserAppConfig(selectedUserDetail.id, {
+        ads: {
+          provider: selectedUserAppConfigProvider,
+        },
+      })
+
+      setSelectedUserAppConfig(response)
+      setSelectedUserAppConfigProvider(response.ads.provider)
+      setUserAppConfigError(null)
+      setNotice({ text: `Updated app config override for ${selectedUserDetail.email}.`, type: 'success' })
+    } catch (error: unknown) {
+      if (handleUnauthorizedError(error)) {
+        return
+      }
+
+      const message = mapErrorToMessage(error)
+      setUserAppConfigError(message)
+      setNotice({ text: message, type: 'error' })
     } finally {
-      setIsLoadingUserDetail(false)
+      setIsSavingUserAppConfig(false)
+    }
+  }
+
+  const handleClearUserAppConfig = async () => {
+    if (!selectedUserDetail) {
+      setNotice({ text: 'Load a user first.', type: 'error' })
+      return
+    }
+
+    setIsClearingUserAppConfig(true)
+    try {
+      await adminApi.updateUserAppConfig(selectedUserDetail.id, {})
+      await refreshSelectedUserAppConfig(selectedUserDetail.id)
+      setNotice({ text: `Cleared app config override for ${selectedUserDetail.email}.`, type: 'success' })
+    } catch (error: unknown) {
+      if (handleUnauthorizedError(error)) {
+        return
+      }
+
+      const message = mapErrorToMessage(error)
+      setUserAppConfigError(message)
+      setNotice({ text: message, type: 'error' })
+    } finally {
+      setIsClearingUserAppConfig(false)
     }
   }
 
@@ -711,10 +740,7 @@ export function AdminDashboardPage() {
   }
 
   const handleLogout = () => {
-    redirectToLogin({
-      noticeText: 'Signed out from the admin dashboard.',
-      noticeType: 'info',
-    })
+    logout()
   }
 
   const canExportUsersCsv = viewMode === 'list' || viewMode === 'filter'
@@ -733,8 +759,15 @@ export function AdminDashboardPage() {
             </div>
             <button
               type="button"
+              onClick={() => navigate('/admin/app-config')}
+              className="ml-auto rounded-md border border-rose-600 bg-transparent px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-200/60"
+            >
+              App Config
+            </button>
+            <button
+              type="button"
               onClick={handleLogout}
-              className="ml-auto rounded-md border border-rose-700 bg-rose-700 px-4 py-2 text-sm font-medium text-rose-100 hover:bg-rose-800"
+              className="rounded-md border border-rose-700 bg-rose-700 px-4 py-2 text-sm font-medium text-rose-100 hover:bg-rose-800"
             >
               Log Out
             </button>
@@ -1068,10 +1101,24 @@ export function AdminDashboardPage() {
                 user={selectedUserDetail}
                 isLoading={isLoadingUserDetail}
                 error={userDetailError}
+                userAppConfigProvider={selectedUserAppConfig?.ads.provider ?? selectedUserAppConfigProvider}
+                isLoadingUserAppConfig={isLoadingUserAppConfig}
+                userAppConfigError={userAppConfigError}
+                isSavingUserAppConfig={isSavingUserAppConfig}
+                isClearingUserAppConfig={isClearingUserAppConfig}
+                onUserAppConfigProviderChange={setSelectedUserAppConfigProvider}
+                onSaveUserAppConfig={() => void handleSaveUserAppConfig()}
+                onClearUserAppConfig={() => void handleClearUserAppConfig()}
                 onClose={() => {
                   setSelectedUserDetail(null)
                   setUserDetailError(null)
                   setIsLoadingUserDetail(false)
+                  setSelectedUserAppConfig(null)
+                  setSelectedUserAppConfigProvider(DEFAULT_APP_CONFIG_PROVIDER)
+                  setUserAppConfigError(null)
+                  setIsLoadingUserAppConfig(false)
+                  setIsSavingUserAppConfig(false)
+                  setIsClearingUserAppConfig(false)
                 }}
               />
             )}

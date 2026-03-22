@@ -56,6 +56,19 @@ export type LoginAndDeleteResponse = {
 
 const normalizeDisplayName = (displayName: string): string => displayName.trim()
 
+const parseResponseBody = async <T>(response: Response): Promise<T> => {
+  if (response.status === 204) {
+    return null as T
+  }
+
+  const rawBody = await response.text()
+  if (!rawBody.trim()) {
+    return null as T
+  }
+
+  return JSON.parse(rawBody) as T
+}
+
 export const createAuthApi = (baseUrl: string) => {
   const sanitizedBaseUrl = baseUrl.replace(/\/$/, '')
 
@@ -97,11 +110,7 @@ export const createAuthApi = (baseUrl: string) => {
       throw new ApiError(response.status, message)
     }
 
-    if (response.status === 204) {
-      return null as T
-    }
-
-    return (await response.json()) as T
+    return parseResponseBody<T>(response)
   }
 
   const register = async (payload: RegisterPayload): Promise<RegisterResponse> => {

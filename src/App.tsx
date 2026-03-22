@@ -5,6 +5,7 @@ import { PrivacyPage } from "./pages/PrivacyPage";
 import { CsaePage } from "./pages/CsaePage";
 import { EulaPage } from "./pages/EulaPage";
 import { AdminLoginPage } from "./pages/AdminLoginPage";
+import { AdminAppConfigPage } from "./pages/AdminAppConfigPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Index from "./pages/Index";
@@ -29,6 +30,7 @@ function App() {
                         <Route path="/reset-password" element={<ResetPasswordPage />} />
                         <Route path="/admin" element={<AdminLoginPage />} />
                         <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+                        <Route path="/admin/app-config" element={<AdminAppConfigPage />} />
                         <Route path="/delete-my-account" element={<DeleteAccountPage />} />
                         <Route path="/privacy" element={<PrivacyPage />} />
                         <Route path="/csae" element={<CsaePage />} />

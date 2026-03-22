@@ -7,6 +7,7 @@ import {
   ADMIN_MIN_LIMIT,
 } from '../constants'
 import type {
+  AdminAppConfig,
   AdminReport,
   AdminReportStats,
   AdminReportsQuery,
@@ -26,6 +27,7 @@ import type {
   PaginatedAdminUsersResponse,
   ResetPasswordsPayload,
   ResetPasswordsResponse,
+  UpdateAdminAppConfigPayload,
   UpdateAdminReportPayload,
   UnbanUsersPayload,
   UnbanUsersResponse,
@@ -96,6 +98,14 @@ const buildSessionEventsQuery = (query: AdminSessionEventsQuery = {}): URLSearch
 const withQuery = (path: string, params: URLSearchParams): string => {
   const query = params.toString()
   return query ? `${path}?${query}` : path
+}
+
+const normalizeAppConfig = (config: AdminAppConfig | null): AdminAppConfig => {
+  return {
+    ads: {
+      provider: config?.ads?.provider ?? '',
+    },
+  }
 }
 
 export const createAdminApi = (baseUrl: string) => {
@@ -173,6 +183,46 @@ export const createAdminApi = (baseUrl: string) => {
     appendQueryParam(params, 'searchField', query.searchField)
 
     return authApi.request<PaginatedAdminUsersResponse>(withQuery('/admin/users/search', params))
+  }
+
+  const getGlobalAppConfig = async (): Promise<AdminAppConfig> => {
+    const response = await authApi.request<AdminAppConfig | null>('/admin/app-config')
+    return normalizeAppConfig(response)
+  }
+
+  const updateGlobalAppConfig = async (payload: UpdateAdminAppConfigPayload): Promise<AdminAppConfig> => {
+    const response = await authApi.request<AdminAppConfig | null>('/admin/app-config', {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+
+    return normalizeAppConfig(response)
+  }
+
+  const getUserAppConfig = async (userId: string): Promise<AdminAppConfig> => {
+    const response = await authApi.request<AdminAppConfig | null>(`/admin/app-config/users/${userId}`)
+
+    if (response?.ads?.provider !== undefined) {
+      return normalizeAppConfig(response)
+    }
+
+    return getGlobalAppConfig()
+  }
+
+  const updateUserAppConfig = async (
+    userId: string,
+    payload: UpdateAdminAppConfigPayload,
+  ): Promise<AdminAppConfig> => {
+    const response = await authApi.request<AdminAppConfig | null>(`/admin/app-config/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+
+    if (response?.ads?.provider !== undefined) {
+      return normalizeAppConfig(response)
+    }
+
+    return getUserAppConfig(userId)
   }
 
   const getUserById = async (userId: string): Promise<AdminUserDetail> => {
@@ -269,6 +319,10 @@ export const createAdminApi = (baseUrl: string) => {
     listUsers,
     filterUsers,
     searchUsers,
+    getGlobalAppConfig,
+    updateGlobalAppConfig,
+    getUserAppConfig,
+    updateUserAppConfig,
     listSockets,
     getUserById,
     banUsers,
