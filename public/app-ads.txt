@@ -128,3 +128,4 @@ spinx.biz, 1373698890, RESELLER
 video.unrulymedia.com, 475093422, RESELLER
 rubiconproject.com, 27714, RESELLER, 0bfd66d529a55807
 orbrx.ai, 8000869124, RESELLER
+vungle.com, 69bf4d873ab6c22aedb1b4c2, DIRECT, c107d686becd2d77
