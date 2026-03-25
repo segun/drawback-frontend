@@ -5,7 +5,7 @@ import Navbar from '../components/landing/Navbar'
 import { NoticeBanner, type Notice } from '../common/components/NoticeBanner'
 import { mapErrorToMessage } from '../common/utils/errorMapper'
 import { useAdminSessionGuard } from '../modules/admin/hooks/useAdminSessionGuard'
-import type { AdminAppConfig, AdminAppConfigProvider } from '../modules/admin/types'
+import type { AdminAppConfigProvider } from '../modules/admin/types'
 
 const DEFAULT_PROVIDER: AdminAppConfigProvider = 'admob'
 const DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES = 1
@@ -16,7 +16,6 @@ export function AdminAppConfigPage() {
 
   const [notice, setNotice] = useState<Notice | null>(null)
 
-  const [globalConfig, setGlobalConfig] = useState<AdminAppConfig | null>(null)
   const [globalProvider, setGlobalProvider] = useState<AdminAppConfigProvider>(DEFAULT_PROVIDER)
   const [globalTemporaryDiscoveryAccessDurationMinutes, setGlobalTemporaryDiscoveryAccessDurationMinutes] = useState(
     DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES,
@@ -31,7 +30,6 @@ export function AdminAppConfigPage() {
 
     try {
       const response = await adminApi.getGlobalAppConfig()
-      setGlobalConfig(response)
       setGlobalProvider(response.ads.provider)
       setGlobalTemporaryDiscoveryAccessDurationMinutes(response.temporaryDiscoveryAccessDurationMinutes)
     } catch (error: unknown) {
@@ -72,7 +70,6 @@ export function AdminAppConfigPage() {
         temporaryDiscoveryAccessDurationMinutes: globalTemporaryDiscoveryAccessDurationMinutes,
       })
 
-      setGlobalConfig(response)
       setGlobalProvider(response.ads.provider)
       setGlobalTemporaryDiscoveryAccessDurationMinutes(response.temporaryDiscoveryAccessDurationMinutes)
       setNotice({ text: 'Updated global app config.', type: 'success' })
@@ -87,9 +84,6 @@ export function AdminAppConfigPage() {
       setIsSavingGlobalConfig(false)
     }
   }
-
-  const globalProviderValue = globalConfig?.ads.provider ?? '-'
-  const globalTemporaryDiscoveryAccessDurationMinutesValue = globalConfig?.temporaryDiscoveryAccessDurationMinutes ?? '-'
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
