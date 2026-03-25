@@ -8,6 +8,7 @@ import { useAdminSessionGuard } from '../modules/admin/hooks/useAdminSessionGuar
 import type { AdminAppConfig, AdminAppConfigProvider } from '../modules/admin/types'
 
 const DEFAULT_PROVIDER: AdminAppConfigProvider = 'admob'
+const DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES = 1
 
 export function AdminAppConfigPage() {
   const navigate = useNavigate()
@@ -17,6 +18,9 @@ export function AdminAppConfigPage() {
 
   const [globalConfig, setGlobalConfig] = useState<AdminAppConfig | null>(null)
   const [globalProvider, setGlobalProvider] = useState<AdminAppConfigProvider>(DEFAULT_PROVIDER)
+  const [globalTemporaryDiscoveryAccessDurationMinutes, setGlobalTemporaryDiscoveryAccessDurationMinutes] = useState(
+    DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES,
+  )
   const [globalLoadError, setGlobalLoadError] = useState<string | null>(null)
   const [isLoadingGlobalConfig, setIsLoadingGlobalConfig] = useState(false)
   const [isSavingGlobalConfig, setIsSavingGlobalConfig] = useState(false)
@@ -29,6 +33,7 @@ export function AdminAppConfigPage() {
       const response = await adminApi.getGlobalAppConfig()
       setGlobalConfig(response)
       setGlobalProvider(response.ads.provider)
+      setGlobalTemporaryDiscoveryAccessDurationMinutes(response.temporaryDiscoveryAccessDurationMinutes)
     } catch (error: unknown) {
       if (handleUnauthorizedError(error)) {
         return
@@ -53,16 +58,23 @@ export function AdminAppConfigPage() {
   const handleSaveGlobalConfig = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
 
+    if (!Number.isInteger(globalTemporaryDiscoveryAccessDurationMinutes) || globalTemporaryDiscoveryAccessDurationMinutes < 1) {
+      setNotice({ text: 'Temporary discovery access duration must be an integer of at least 1 minute.', type: 'error' })
+      return
+    }
+
     setIsSavingGlobalConfig(true)
     try {
       const response = await adminApi.updateGlobalAppConfig({
         ads: {
           provider: globalProvider,
         },
+        temporaryDiscoveryAccessDurationMinutes: globalTemporaryDiscoveryAccessDurationMinutes,
       })
 
       setGlobalConfig(response)
       setGlobalProvider(response.ads.provider)
+      setGlobalTemporaryDiscoveryAccessDurationMinutes(response.temporaryDiscoveryAccessDurationMinutes)
       setNotice({ text: 'Updated global app config.', type: 'success' })
     } catch (error: unknown) {
       if (handleUnauthorizedError(error)) {
@@ -77,6 +89,7 @@ export function AdminAppConfigPage() {
   }
 
   const globalProviderValue = globalConfig?.ads.provider ?? '-'
+  const globalTemporaryDiscoveryAccessDurationMinutesValue = globalConfig?.temporaryDiscoveryAccessDurationMinutes ?? '-'
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -88,7 +101,7 @@ export function AdminAppConfigPage() {
           <section className="mb-4 flex flex-wrap items-center gap-3">
             <div>
               <h1 className="text-2xl font-semibold text-rose-900">Admin App Config</h1>
-              <p className="text-sm text-rose-700">Manage the global ads provider and per-user overrides.</p>
+              <p className="text-sm text-rose-700">Manage global app config values.</p>
             </div>
             <button
               type="button"
@@ -123,11 +136,11 @@ export function AdminAppConfigPage() {
                 </button>
               </div>
 
-              <div className="mt-4 rounded-lg border border-rose-200 bg-rose-50 p-3 text-sm text-rose-900">
-                <div className="font-medium">Current Provider</div>
-                <div className="mt-1 text-lg font-semibold text-rose-950">{globalProviderValue}</div>
-                {globalLoadError && <div className="mt-2 text-red-700">{globalLoadError}</div>}
-              </div>
+              {globalLoadError && (
+                <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                  {globalLoadError}
+                </div>
+              )}
 
               <form className="mt-4 flex flex-col gap-3" onSubmit={handleSaveGlobalConfig}>
                 <label className="flex flex-col gap-1 text-sm text-rose-900">
@@ -137,6 +150,18 @@ export function AdminAppConfigPage() {
                     value={globalProvider}
                     onChange={(event) => setGlobalProvider(event.target.value as AdminAppConfigProvider)}
                     placeholder="admob"
+                    className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-1 text-sm text-rose-900">
+                  Temporary Discovery Access Duration (minutes)
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={globalTemporaryDiscoveryAccessDurationMinutes}
+                    onChange={(event) => setGlobalTemporaryDiscoveryAccessDurationMinutes(Number(event.target.value))}
                     className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600"
                   />
                 </label>

@@ -100,11 +100,29 @@ const withQuery = (path: string, params: URLSearchParams): string => {
   return query ? `${path}?${query}` : path
 }
 
+const DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES = 1
+
+const hasAppConfigShape = (config: AdminAppConfig | null): boolean => {
+  return Boolean(
+    config
+    && (
+      config.ads?.provider !== undefined
+      || config.temporaryDiscoveryAccessDurationMinutes !== undefined
+    ),
+  )
+}
+
 const normalizeAppConfig = (config: AdminAppConfig | null): AdminAppConfig => {
+  const duration = config?.temporaryDiscoveryAccessDurationMinutes
+  const normalizedDuration = Number.isInteger(duration) && duration >= 1
+    ? duration
+    : DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES
+
   return {
     ads: {
       provider: config?.ads?.provider ?? '',
     },
+    temporaryDiscoveryAccessDurationMinutes: normalizedDuration,
   }
 }
 
@@ -202,7 +220,7 @@ export const createAdminApi = (baseUrl: string) => {
   const getUserAppConfig = async (userId: string): Promise<AdminAppConfig> => {
     const response = await authApi.request<AdminAppConfig | null>(`/admin/app-config/users/${userId}`)
 
-    if (response?.ads?.provider !== undefined) {
+    if (hasAppConfigShape(response)) {
       return normalizeAppConfig(response)
     }
 
@@ -218,7 +236,7 @@ export const createAdminApi = (baseUrl: string) => {
       body: JSON.stringify(payload),
     })
 
-    if (response?.ads?.provider !== undefined) {
+    if (hasAppConfigShape(response)) {
       return normalizeAppConfig(response)
     }
 

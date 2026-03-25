@@ -92,6 +92,7 @@ const DEFAULT_SESSION_EVENT_FILTER_STATE: SessionEventFilterState = {
 
 const ADMIN_REPORT_NOTES_MAX = 2000
 const DEFAULT_APP_CONFIG_PROVIDER: AdminAppConfigProvider = 'admob'
+const DEFAULT_APP_CONFIG_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES = 1
 
 const toBooleanFilter = (value: BooleanFilterValue): boolean | undefined => {
   if (value === 'ALL') {
@@ -213,6 +214,9 @@ export function AdminDashboardPage() {
   const [userDetailError, setUserDetailError] = useState<string | null>(null)
   const [selectedUserAppConfig, setSelectedUserAppConfig] = useState<AdminAppConfig | null>(null)
   const [selectedUserAppConfigProvider, setSelectedUserAppConfigProvider] = useState<AdminAppConfigProvider>(DEFAULT_APP_CONFIG_PROVIDER)
+  const [selectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes, setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes] = useState(
+    DEFAULT_APP_CONFIG_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES,
+  )
   const [isLoadingUserAppConfig, setIsLoadingUserAppConfig] = useState(false)
   const [userAppConfigError, setUserAppConfigError] = useState<string | null>(null)
   const [isSavingUserAppConfig, setIsSavingUserAppConfig] = useState(false)
@@ -506,6 +510,7 @@ export function AdminDashboardPage() {
     setIsLoadingUserDetail(true)
     setSelectedUserAppConfig(null)
     setSelectedUserAppConfigProvider(DEFAULT_APP_CONFIG_PROVIDER)
+    setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(DEFAULT_APP_CONFIG_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES)
     setUserAppConfigError(null)
     setIsLoadingUserAppConfig(true)
 
@@ -530,6 +535,7 @@ export function AdminDashboardPage() {
     if (appConfigResult.status === 'fulfilled') {
       setSelectedUserAppConfig(appConfigResult.value)
       setSelectedUserAppConfigProvider(appConfigResult.value.ads.provider)
+      setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(appConfigResult.value.temporaryDiscoveryAccessDurationMinutes)
     } else {
       const error = appConfigResult.reason
       if (handleUnauthorizedError(error)) {
@@ -549,6 +555,7 @@ export function AdminDashboardPage() {
     const appConfig = await adminApi.getUserAppConfig(userId)
     setSelectedUserAppConfig(appConfig)
     setSelectedUserAppConfigProvider(appConfig.ads.provider)
+    setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(appConfig.temporaryDiscoveryAccessDurationMinutes)
     setUserAppConfigError(null)
   }
 
@@ -558,16 +565,26 @@ export function AdminDashboardPage() {
       return
     }
 
+    if (
+      !Number.isInteger(selectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes)
+      || selectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes < 1
+    ) {
+      setNotice({ text: 'Temporary discovery access duration must be an integer of at least 1 minute.', type: 'error' })
+      return
+    }
+
     setIsSavingUserAppConfig(true)
     try {
       const response = await adminApi.updateUserAppConfig(selectedUserDetail.id, {
         ads: {
           provider: selectedUserAppConfigProvider,
         },
+        temporaryDiscoveryAccessDurationMinutes: selectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes,
       })
 
       setSelectedUserAppConfig(response)
       setSelectedUserAppConfigProvider(response.ads.provider)
+      setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(response.temporaryDiscoveryAccessDurationMinutes)
       setUserAppConfigError(null)
       setNotice({ text: `Updated app config override for ${selectedUserDetail.email}.`, type: 'success' })
     } catch (error: unknown) {
@@ -1102,11 +1119,16 @@ export function AdminDashboardPage() {
                 isLoading={isLoadingUserDetail}
                 error={userDetailError}
                 userAppConfigProvider={selectedUserAppConfig?.ads.provider ?? selectedUserAppConfigProvider}
+                userAppConfigTemporaryDiscoveryAccessDurationMinutes={
+                  selectedUserAppConfig?.temporaryDiscoveryAccessDurationMinutes
+                  ?? selectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes
+                }
                 isLoadingUserAppConfig={isLoadingUserAppConfig}
                 userAppConfigError={userAppConfigError}
                 isSavingUserAppConfig={isSavingUserAppConfig}
                 isClearingUserAppConfig={isClearingUserAppConfig}
                 onUserAppConfigProviderChange={setSelectedUserAppConfigProvider}
+                onUserAppConfigTemporaryDiscoveryAccessDurationMinutesChange={setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes}
                 onSaveUserAppConfig={() => void handleSaveUserAppConfig()}
                 onClearUserAppConfig={() => void handleClearUserAppConfig()}
                 onClose={() => {
@@ -1115,6 +1137,7 @@ export function AdminDashboardPage() {
                   setIsLoadingUserDetail(false)
                   setSelectedUserAppConfig(null)
                   setSelectedUserAppConfigProvider(DEFAULT_APP_CONFIG_PROVIDER)
+                  setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(DEFAULT_APP_CONFIG_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES)
                   setUserAppConfigError(null)
                   setIsLoadingUserAppConfig(false)
                   setIsSavingUserAppConfig(false)
