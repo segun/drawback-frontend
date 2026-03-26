@@ -22,7 +22,7 @@ const HeroSection = () => {
           >
             <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-1.5 text-sm font-medium text-secondary-foreground mb-6">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Coming Soon: iOS & Android Apps
+              Available on Android • iOS Coming Soon
             </span>
           </motion.div>
 

@@ -1,7 +1,7 @@
 import { Apple } from "lucide-react";
 
-const APP_STORE_URL = "#"; // Replace with real App Store URL
-const PLAY_STORE_URL = "#"; // Replace with real Play Store URL
+const APP_STORE_URL = "#"; // Coming soon
+const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=chat.drawback.flutter";
 
 const PlayStoreIcon = () => (
   <svg viewBox="0 0 24 24" className="w-5 h-5" fill="currentColor">
@@ -13,18 +13,23 @@ export const StoreButtons = ({ size = "default" }: { size?: "default" | "small" 
   const isSmall = size === "small";
   return (
     <div className="flex flex-col sm:flex-row items-center gap-3">
-      <a
-        href={APP_STORE_URL}
-        className={`inline-flex items-center gap-3 rounded-xl bg-foreground text-background hover:opacity-90 transition-opacity font-body ${isSmall ? "px-4 py-2" : "px-6 py-3"}`}
-      >
-        <Apple className={isSmall ? "w-5 h-5" : "w-7 h-7"} />
-        <div className="text-left">
-          <div className={`${isSmall ? "text-[9px]" : "text-[10px]"} leading-none opacity-80`}>Download on the</div>
-          <div className={`${isSmall ? "text-sm" : "text-base"} font-semibold leading-tight`}>App Store</div>
-        </div>
-      </a>
+      <div className="relative">
+        <button
+          disabled
+          className={`inline-flex items-center gap-3 rounded-xl bg-foreground/40 text-background cursor-not-allowed font-body ${isSmall ? "px-4 py-2" : "px-6 py-3"}`}
+        >
+          <Apple className={isSmall ? "w-5 h-5" : "w-7 h-7"} />
+          <div className="text-left">
+            <div className={`${isSmall ? "text-[9px]" : "text-[10px]"} leading-none opacity-80`}>Download on the</div>
+            <div className={`${isSmall ? "text-sm" : "text-base"} font-semibold leading-tight`}>App Store</div>
+          </div>
+        </button>
+        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-semibold px-2 py-0.5 rounded-full">Soon</div>
+      </div>
       <a
         href={PLAY_STORE_URL}
+        target="_blank"
+        rel="noopener noreferrer"
         className={`inline-flex items-center gap-3 rounded-xl bg-foreground text-background hover:opacity-90 transition-opacity font-body ${isSmall ? "px-4 py-2" : "px-6 py-3"}`}
       >
         <PlayStoreIcon />
@@ -39,18 +44,23 @@ export const StoreButtons = ({ size = "default" }: { size?: "default" | "small" 
 
 export const StoreButtonsInverted = () => (
   <div className="flex flex-col sm:flex-row items-center gap-3">
-    <a
-      href={APP_STORE_URL}
-      className="inline-flex items-center gap-3 rounded-xl bg-card text-foreground hover:scale-105 transition-transform font-body px-6 py-3 shadow-card"
-    >
-      <Apple className="w-7 h-7" />
-      <div className="text-left">
-        <div className="text-[10px] leading-none text-muted-foreground">Download on the</div>
-        <div className="text-base font-semibold leading-tight">App Store</div>
-      </div>
-    </a>
+    <div className="relative">
+      <button
+        disabled
+        className="inline-flex items-center gap-3 rounded-xl bg-card/40 text-foreground/40 cursor-not-allowed font-body px-6 py-3 shadow-card"
+      >
+        <Apple className="w-7 h-7" />
+        <div className="text-left">
+          <div className="text-[10px] leading-none">Download on the</div>
+          <div className="text-base font-semibold leading-tight">App Store</div>
+        </div>
+      </button>
+      <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-semibold px-2 py-0.5 rounded-full">Soon</div>
+    </div>
     <a
       href={PLAY_STORE_URL}
+      target="_blank"
+      rel="noopener noreferrer"
       className="inline-flex items-center gap-3 rounded-xl bg-card text-foreground hover:scale-105 transition-transform font-body px-6 py-3 shadow-card"
     >
       <PlayStoreIcon />
