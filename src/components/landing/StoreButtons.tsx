@@ -1,6 +1,6 @@
 import { Apple } from "lucide-react";
 
-const APP_STORE_URL = "#"; // Coming soon
+// const APP_STORE_URL = "#"; // Coming soon
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=chat.drawback.flutter";
 
 const PlayStoreIcon = () => (
