@@ -20,7 +20,7 @@ const features = [
   {
     icon: Globe,
     title: "Draw Anywhere",
-    description: "Works on any device with a browser. Mobile, tablet, desktop — draw wherever you are.",
+    description: "Available on iOS and Android. Draw together from your phone or tablet, wherever you are.",
   },
   {
     icon: Shield,
