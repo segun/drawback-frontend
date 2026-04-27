@@ -236,3 +236,147 @@ export type AdminSessionEventStats = {
   last7Days: number
   byType: Record<AdminSessionEventType, number>
 }
+
+// Geo Providers
+
+export type GeoProviderStatus = 'unknown' | 'healthy' | 'degraded' | 'down' | 'active'
+
+export type GeoProvider = {
+  id: string
+  name: string
+  urlTemplate: string
+  responseMapping: Record<string, string>
+  attributionText: string | null
+  status: GeoProviderStatus
+  lastCheckedAt: string | null
+  sortOrder: number
+  isEnabled: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type CreateGeoProviderPayload = {
+  name: string
+  urlTemplate: string
+  apiKey?: string | null
+  responseMapping: Record<string, string>
+  attributionText?: string | null
+  sortOrder?: number
+  isEnabled?: boolean
+}
+
+export type UpdateGeoProviderPayload = {
+  name?: string
+  urlTemplate?: string
+  apiKey?: string | null
+  responseMapping?: Record<string, string>
+  attributionText?: string | null
+  sortOrder?: number
+  isEnabled?: boolean
+}
+
+export type PaginatedGeoProvidersResponse = {
+  data: GeoProvider[]
+  total: number
+  page: number
+  limit: number
+}
+
+// Campaigns
+
+export type CampaignDisplayType = 'closeable' | 'timed'
+
+export type Campaign = {
+  id: string
+  header: string | null
+  footer: string | null
+  link: string
+  displayType: CampaignDisplayType
+  countdown: number | null
+  country: string | null
+  region: string | null
+  startAt: string
+  endAt: string
+  isActive: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export type CreateCampaignPayload = {
+  link: string
+  header?: string | null
+  footer?: string | null
+  displayType?: CampaignDisplayType
+  countdown?: number | null
+  country?: string | null
+  region?: string | null
+  startAt: string
+  endAt: string
+  isActive?: boolean
+}
+
+export type UpdateCampaignPayload = {
+  link?: string
+  header?: string | null
+  footer?: string | null
+  displayType?: CampaignDisplayType
+  countdown?: number | null
+  country?: string | null
+  region?: string | null
+  startAt?: string
+  endAt?: string
+  isActive?: boolean
+}
+
+export type PaginatedCampaignsResponse = {
+  data: Campaign[]
+  total: number
+  page: number
+  limit: number
+}
+
+export type AdminCampaignsQuery = {
+  page?: number
+  limit?: number
+}
+
+export type CampaignDeliveryStatus = 'sent' | 'skipped' | 'acknowledged'
+
+export type CampaignDeliveryUser = {
+  id: string
+  displayName: string
+}
+
+export type CampaignDeliveryCampaign = {
+  id: string
+  header: string | null
+  link: string
+}
+
+export type CampaignDelivery = {
+  id: string
+  campaignId: string
+  userId: string
+  status: CampaignDeliveryStatus
+  skipReason: string | null
+  sentAt: string | null
+  acknowledgedAt: string | null
+  createdAt: string
+  updatedAt: string
+  user: CampaignDeliveryUser
+  campaign: CampaignDeliveryCampaign
+}
+
+export type PaginatedCampaignDeliveriesResponse = {
+  data: CampaignDelivery[]
+  total: number
+  page: number
+  limit: number
+}
+
+export type AdminCampaignDeliveriesQuery = {
+  campaignId?: string
+  status?: CampaignDeliveryStatus
+  page?: number
+  limit?: number
+}

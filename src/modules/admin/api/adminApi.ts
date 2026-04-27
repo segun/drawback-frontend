@@ -31,6 +31,17 @@ import type {
   UpdateAdminReportPayload,
   UnbanUsersPayload,
   UnbanUsersResponse,
+  GeoProvider,
+  CreateGeoProviderPayload,
+  UpdateGeoProviderPayload,
+  PaginatedGeoProvidersResponse,
+  Campaign,
+  CreateCampaignPayload,
+  UpdateCampaignPayload,
+  PaginatedCampaignsResponse,
+  AdminCampaignsQuery,
+  PaginatedCampaignDeliveriesResponse,
+  AdminCampaignDeliveriesQuery,
 } from '../types'
 
 const clampLimit = (limit?: number): number => {
@@ -333,6 +344,81 @@ export const createAdminApi = (baseUrl: string) => {
     await listUsers({ page: 1, limit: 1 })
   }
 
+  // Geo Providers
+
+  const listGeoProviders = async (): Promise<PaginatedGeoProvidersResponse> => {
+    return authApi.request<PaginatedGeoProvidersResponse>('/admin/geo-providers')
+  }
+
+  const getGeoProvider = async (id: string): Promise<GeoProvider> => {
+    return authApi.request<GeoProvider>(`/admin/geo-providers/${id}`)
+  }
+
+  const createGeoProvider = async (payload: CreateGeoProviderPayload): Promise<GeoProvider> => {
+    return authApi.request<GeoProvider>('/admin/geo-providers', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  const updateGeoProvider = async (id: string, payload: UpdateGeoProviderPayload): Promise<GeoProvider> => {
+    return authApi.request<GeoProvider>(`/admin/geo-providers/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  const deleteGeoProvider = async (id: string): Promise<void> => {
+    await authApi.request<null>(`/admin/geo-providers/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Campaigns
+
+  const listCampaigns = async (query: AdminCampaignsQuery = {}): Promise<PaginatedCampaignsResponse> => {
+    const params = buildPaginationQuery(query)
+    return authApi.request<PaginatedCampaignsResponse>(withQuery('/admin/campaigns', params))
+  }
+
+  const getCampaign = async (id: string): Promise<Campaign> => {
+    return authApi.request<Campaign>(`/admin/campaigns/${id}`)
+  }
+
+  const createCampaign = async (payload: CreateCampaignPayload): Promise<Campaign> => {
+    return authApi.request<Campaign>('/admin/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  const updateCampaign = async (id: string, payload: UpdateCampaignPayload): Promise<Campaign> => {
+    return authApi.request<Campaign>(`/admin/campaigns/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    })
+  }
+
+  const deleteCampaign = async (id: string): Promise<void> => {
+    await authApi.request<null>(`/admin/campaigns/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  // Campaign Deliveries
+
+  const listCampaignDeliveries = async (query: AdminCampaignDeliveriesQuery = {}): Promise<PaginatedCampaignDeliveriesResponse> => {
+    const params = new URLSearchParams()
+    if (query.campaignId) params.set('campaignId', query.campaignId)
+    if (query.status) params.set('status', query.status)
+    if (query.page != null) params.set('page', String(query.page))
+    if (query.limit != null) params.set('limit', String(query.limit))
+    const qs = params.toString()
+    return authApi.request<PaginatedCampaignDeliveriesResponse>(
+      qs ? `/admin/campaign-deliveries?${qs}` : '/admin/campaign-deliveries',
+    )
+  }
+
   return {
     listUsers,
     filterUsers,
@@ -354,6 +440,17 @@ export const createAdminApi = (baseUrl: string) => {
     listSessionEvents,
     getSessionEventStats,
     checkAdminAccess,
+    listGeoProviders,
+    getGeoProvider,
+    createGeoProvider,
+    updateGeoProvider,
+    deleteGeoProvider,
+    listCampaigns,
+    getCampaign,
+    createCampaign,
+    updateCampaign,
+    deleteCampaign,
+    listCampaignDeliveries,
     logout: authApi.logout,
   }
 }

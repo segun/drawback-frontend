@@ -783,6 +783,20 @@ export function AdminDashboardPage() {
             </button>
             <button
               type="button"
+              onClick={() => navigate('/admin/campaigns')}
+              className="rounded-md border border-rose-600 bg-transparent px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-200/60"
+            >
+              Campaigns
+            </button>
+            <button
+              type="button"
+              onClick={() => navigate('/admin/geo-providers')}
+              className="rounded-md border border-rose-600 bg-transparent px-4 py-2 text-sm font-medium text-rose-700 hover:bg-rose-200/60"
+            >
+              Geo Providers
+            </button>
+            <button
+              type="button"
               onClick={handleLogout}
               className="rounded-md border border-rose-700 bg-rose-700 px-4 py-2 text-sm font-medium text-rose-100 hover:bg-rose-800"
             >
