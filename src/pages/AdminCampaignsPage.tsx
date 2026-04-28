@@ -304,7 +304,7 @@ export function AdminCampaignsPage() {
                 </h2>
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={(e) => void handleSubmit(e)}>
                   <label className="col-span-full flex flex-col gap-1 text-sm text-rose-900">
-                    Link <span className="text-red-600">*</span>
+                    <span>Link <span className="text-red-600">*</span></span>
                     <input
                       type="url"
                       value={form.link}
@@ -354,7 +354,7 @@ export function AdminCampaignsPage() {
 
                   {form.displayType === 'timed' && (
                     <label className="flex flex-col gap-1 text-sm text-rose-900">
-                      Countdown (seconds) <span className="text-red-600">*</span>
+                      <span>Countdown (seconds) <span className="text-red-600">*</span></span>
                       <input
                         type="number"
                         value={form.countdown}
@@ -390,7 +390,7 @@ export function AdminCampaignsPage() {
                   </label>
 
                   <label className="flex flex-col gap-1 text-sm text-rose-900">
-                    Start Date &amp; Time <span className="text-red-600">*</span>
+                    <span>Start Date &amp; Time <span className="text-red-600">*</span></span>
                     <input
                       type="datetime-local"
                       value={form.startAt}
@@ -401,7 +401,7 @@ export function AdminCampaignsPage() {
                   </label>
 
                   <label className="flex flex-col gap-1 text-sm text-rose-900">
-                    End Date &amp; Time <span className="text-red-600">*</span>
+                    <span>End Date &amp; Time <span className="text-red-600">*</span></span>
                     <input
                       type="datetime-local"
                       value={form.endAt}

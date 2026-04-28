@@ -258,7 +258,7 @@ export function AdminGeoProvidersPage() {
                 </h2>
                 <form className="grid gap-3 md:grid-cols-2" onSubmit={(e) => void handleSubmit(e)}>
                   <label className="flex flex-col gap-1 text-sm text-rose-900">
-                    Name <span className="text-red-600">*</span>
+                    <span>Name <span className="text-red-600">*</span></span>
                     <input
                       type="text"
                       value={form.name}
@@ -282,7 +282,7 @@ export function AdminGeoProvidersPage() {
                   </label>
 
                   <label className="col-span-full flex flex-col gap-1 text-sm text-rose-900">
-                    URL Template <span className="text-red-600">*</span>
+                    <span>URL Template <span className="text-red-600">*</span></span>
                     <input
                       type="text"
                       value={form.urlTemplate}
@@ -307,7 +307,7 @@ export function AdminGeoProvidersPage() {
                   </label>
 
                   <label className="col-span-full flex flex-col gap-1 text-sm text-rose-900">
-                    Response Mapping (JSON) <span className="text-red-600">*</span>
+                    <span>Response Mapping (JSON) <span className="text-red-600">*</span></span>
                     <span className="text-xs text-rose-600">
                       Must include &quot;country&quot; and &quot;region&quot; keys mapping to the provider&apos;s response field names.
                     </span>
