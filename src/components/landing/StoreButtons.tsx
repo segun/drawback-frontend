@@ -1,4 +1,5 @@
 import { Apple } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 const APP_STORE_URL = "https://apps.apple.com/us/app/drawback-chat/id6760538640";
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=chat.drawback.flutter";
@@ -65,6 +66,48 @@ export const StoreButtonsInverted = () => (
       <div className="text-left">
         <div className="text-[10px] leading-none text-muted-foreground">Get it on</div>
         <div className="text-base font-semibold leading-tight">Google Play</div>
+      </div>
+    </a>
+  </div>
+);
+
+export const DownloadCards = () => (
+  <div className="flex flex-col sm:flex-row items-stretch gap-4">
+    {/* App Store card */}
+    <a
+      href={APP_STORE_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex flex-row sm:flex-col items-center gap-4 sm:gap-3 backdrop-blur-sm border border-border rounded-2xl px-5 py-4 shadow-card hover:border-primary/40 hover:shadow-lg transition-all"
+    >
+      <div className="hidden sm:block bg-white rounded-xl p-2 shrink-0">
+        <QRCodeSVG value={APP_STORE_URL} size={150} marginSize={1} />
+      </div>
+      <div className="inline-flex items-center gap-3 rounded-xl bg-foreground text-background px-5 py-2.5 group-hover:opacity-90 transition-opacity font-body shrink-0">
+        <Apple className="w-6 h-6" />
+        <div className="text-left">
+          <div className="text-[10px] leading-none opacity-70">Download on the</div>
+          <div className="text-sm font-semibold leading-tight">App Store</div>
+        </div>
+      </div>
+    </a>
+
+    {/* Play Store card */}
+    <a
+      href={PLAY_STORE_URL}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex flex-row sm:flex-col items-center gap-4 sm:gap-3 backdrop-blur-sm border border-border rounded-2xl px-5 py-4 shadow-card hover:border-primary/40 hover:shadow-lg transition-all"
+    >
+      <div className="hidden sm:block bg-white rounded-xl p-2 shrink-0">
+        <QRCodeSVG value={PLAY_STORE_URL} size={150} marginSize={1} />
+      </div>
+      <div className="inline-flex items-center gap-3 rounded-xl bg-foreground text-background px-5 py-2.5 group-hover:opacity-90 transition-opacity font-body shrink-0">
+        <PlayStoreIcon />
+        <div className="text-left">
+          <div className="text-[10px] leading-none opacity-70">Get it on</div>
+          <div className="text-sm font-semibold leading-tight">Google Play</div>
+        </div>
       </div>
     </a>
   </div>

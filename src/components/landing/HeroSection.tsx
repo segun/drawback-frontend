@@ -1,6 +1,7 @@
 import { motion } from "framer-motion";
 import { Users, Pencil } from "lucide-react";
-import { StoreButtons } from "./StoreButtons";
+import { DownloadCards } from "./StoreButtons";
+import DrawingDemo from "./DrawingDemo";
 
 const HeroSection = () => {
   return (
@@ -22,7 +23,7 @@ const HeroSection = () => {
           >
             <span className="inline-flex items-center gap-2 rounded-full bg-secondary px-4 py-1.5 text-sm font-medium text-secondary-foreground mb-6">
               <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-              Available on Android • iOS Coming Soon
+              Now available on iOS & Android
             </span>
           </motion.div>
 
@@ -53,7 +54,7 @@ const HeroSection = () => {
             transition={{ duration: 0.6, delay: 0.4 }}
             className="flex flex-col items-center gap-6"
           >
-            <StoreButtons />
+            <DownloadCards />
             <a
               href="#how-it-works"
               className="inline-flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors font-body"
@@ -66,6 +67,7 @@ const HeroSection = () => {
 
         {/* Floating canvas mockup */}
         <motion.div
+          id="how-it-works"
           initial={{ opacity: 0, y: 60 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8, delay: 0.5 }}
@@ -79,21 +81,8 @@ const HeroSection = () => {
               <div className="w-3 h-3 rounded-full bg-secondary" />
               <span className="ml-3 text-xs font-body text-muted-foreground">Drawing with @friend</span>
             </div>
-            {/* Canvas areas */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="aspect-4/3 rounded-xl bg-canvas border-2 border-dashed border-canvas-border flex items-center justify-center">
-                  <svg width="120" height="100" viewBox="0 0 120 100" className="text-primary/30">
-                  <path d="M30 70 Q40 20 60 50 Q80 80 90 30" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" />
-                  <circle cx="60" cy="60" r="15" stroke="currentColor" strokeWidth="2" fill="none" />
-                </svg>
-              </div>
-              <div className="aspect-4/3 rounded-xl bg-canvas border-2 border-dashed border-canvas-border flex items-center justify-center">
-                  <svg width="120" height="100" viewBox="0 0 120 100" className="text-primary/20">
-                  <path d="M20 80 L60 20 L100 80 Z" stroke="currentColor" strokeWidth="3" fill="none" strokeLinecap="round" strokeLinejoin="round" />
-                  <circle cx="60" cy="55" r="8" stroke="currentColor" strokeWidth="2" fill="none" />
-                </svg>
-              </div>
-            </div>
+            {/* Animated drawing demo */}
+            <DrawingDemo />
             {/* Toolbar */}
             <div className="flex items-center gap-2 mt-3 px-2">
               <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">

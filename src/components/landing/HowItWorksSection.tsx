@@ -8,7 +8,7 @@ const steps = [
 
 const HowItWorksSection = () => {
   return (
-    <section id="how-it-works" className="py-24 sm:py-32 gradient-hero">
+    <section className="py-24 sm:py-32 gradient-hero">
       <div className="container mx-auto px-6">
         <div className="text-center mb-16">
           <h2 className="text-5xl sm:text-6xl font-bold text-foreground mb-4">
