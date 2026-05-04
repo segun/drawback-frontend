@@ -9,6 +9,7 @@ import { AdminAppConfigPage } from "./pages/AdminAppConfigPage";
 import { AdminCampaignsPage } from "./pages/AdminCampaignsPage";
 import { AdminGeoProvidersPage } from "./pages/AdminGeoProvidersPage";
 import { AdminCampaignDeliveriesPage } from "./pages/AdminCampaignDeliveriesPage";
+import { AdminSessionStatsPage } from "./pages/AdminSessionStatsPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Index from "./pages/Index";
@@ -37,6 +38,7 @@ function App() {
                         <Route path="/admin/campaigns" element={<AdminCampaignsPage />} />
                         <Route path="/admin/geo-providers" element={<AdminGeoProvidersPage />} />
                         <Route path="/admin/campaign-deliveries" element={<AdminCampaignDeliveriesPage />} />
+                        <Route path="/admin/session-stats" element={<AdminSessionStatsPage />} />
                         <Route path="/delete-my-account" element={<DeleteAccountPage />} />
                         <Route path="/privacy" element={<PrivacyPage />} />
                         <Route path="/csae" element={<CsaePage />} />

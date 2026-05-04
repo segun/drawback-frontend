@@ -42,6 +42,8 @@ import type {
   AdminCampaignsQuery,
   PaginatedCampaignDeliveriesResponse,
   AdminCampaignDeliveriesQuery,
+  AdminSessionStat,
+  AdminSessionStatsQuery,
 } from '../types'
 
 const clampLimit = (limit?: number): number => {
@@ -405,6 +407,18 @@ export const createAdminApi = (baseUrl: string) => {
     })
   }
 
+  // Session Stats
+
+  const listSessionStats = async (query: AdminSessionStatsQuery = {}): Promise<AdminSessionStat[]> => {
+    const params = new URLSearchParams()
+    appendQueryParam(params, 'userId', query.userId?.trim() || undefined)
+    appendQueryParam(params, 'invitedBy', query.invitedBy?.trim() || undefined)
+    appendQueryParam(params, 'period', query.period)
+    appendQueryParam(params, 'startDate', query.startDate?.trim() || undefined)
+    appendQueryParam(params, 'endDate', query.endDate?.trim() || undefined)
+    return authApi.request<AdminSessionStat[]>(withQuery('/admin/session-stats', params))
+  }
+
   // Campaign Deliveries
 
   const listCampaignDeliveries = async (query: AdminCampaignDeliveriesQuery = {}): Promise<PaginatedCampaignDeliveriesResponse> => {
@@ -451,6 +465,7 @@ export const createAdminApi = (baseUrl: string) => {
     updateCampaign,
     deleteCampaign,
     listCampaignDeliveries,
+    listSessionStats,
     logout: authApi.logout,
   }
 }

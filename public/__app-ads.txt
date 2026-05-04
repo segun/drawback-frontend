@@ -1,0 +1,8 @@
+google.com, pub-9528764047064163, DIRECT, f08c47fec0942fa0
+yandex.com, 63904735, RESELLER
+yandex.com, 311761695, RESELLER
+yandex.com, 98384845, RESELLER
+yandex.com, 97539269, RESELLER
+yandex.com, 322228399, DIRECT
+yandex.com, 94923424, RESELLER
+yandex.com, 305143219, DIRECT

@@ -380,3 +380,25 @@ export type AdminCampaignDeliveriesQuery = {
   page?: number
   limit?: number
 }
+
+// Session Stats
+
+export type AdminSessionStatsPeriod = 'day' | 'week' | 'month'
+
+export type AdminSessionStat = {
+  userId: string
+  displayName: string
+  invitedBy: string | null
+  invitedByUser: string | null
+  period: string
+  totalSeconds: number
+  sessionCount: number
+}
+
+export type AdminSessionStatsQuery = {
+  userId?: string
+  invitedBy?: string
+  period?: AdminSessionStatsPeriod
+  startDate?: string
+  endDate?: string
+}
