@@ -99,7 +99,7 @@ export function AdminSessionStatsPage() {
   return (
     <div className="flex min-h-screen flex-col bg-rose-50">
       <Navbar />
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-7xl flex-1 px-4 pt-24 pb-6">
         {notice && <NoticeBanner notice={notice} onDismiss={() => setNotice(null)} />}
 
         <section className="mb-4 flex flex-wrap items-center gap-3">

@@ -66,7 +66,16 @@ jobs:
         if: github.ref_name == matrix.branch
         run: |
           echo "⏳ Waiting for deployment to complete..."
-          sleep 10
+          sleep 15
           echo "🏥 Running health check..."
-          curl -f https://${{ matrix.site_host }} || exit 1
-          echo "✅ Frontend is healthy!"
+          for i in $(seq 1 10); do
+            echo "Attempt $i/10..."
+            if curl -f --max-time 15 https://${{ matrix.site_host }}; then
+              echo "✅ Frontend is healthy!"
+              exit 0
+            fi
+            echo "Not ready yet, retrying in 15s..."
+            sleep 15
+          done
+          echo "❌ Health check failed after 10 attempts."
+          exit 1
