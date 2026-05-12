@@ -114,26 +114,40 @@ const withQuery = (path: string, params: URLSearchParams): string => {
 }
 
 const DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES = 1
+const DEFAULT_ADS_PROVIDER = 'admob'
+const DEFAULT_ADS_COOLDOWN = 10
+const DEFAULT_ADS_SESSION_CAP = 144000
+const DEFAULT_ADS_DAILY_CAP = 144
+
+const normalizePositiveInteger = (value: number | undefined, fallback: number): number => {
+  return Number.isInteger(value) && value >= 1 ? value : fallback
+}
 
 const hasAppConfigShape = (config: AdminAppConfig | null): boolean => {
   return Boolean(
     config
     && (
       config.ads?.provider !== undefined
+      || config.ads?.cooldown !== undefined
+      || config.ads?.sessionCap !== undefined
+      || config.ads?.dailyCap !== undefined
       || config.temporaryDiscoveryAccessDurationMinutes !== undefined
     ),
   )
 }
 
 const normalizeAppConfig = (config: AdminAppConfig | null): AdminAppConfig => {
-  const duration = config?.temporaryDiscoveryAccessDurationMinutes
-  const normalizedDuration = Number.isInteger(duration) && duration >= 1
-    ? duration
-    : DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES
+  const normalizedDuration = normalizePositiveInteger(
+    config?.temporaryDiscoveryAccessDurationMinutes,
+    DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES,
+  )
 
   return {
     ads: {
-      provider: config?.ads?.provider ?? '',
+      provider: config?.ads?.provider ?? DEFAULT_ADS_PROVIDER,
+      cooldown: normalizePositiveInteger(config?.ads?.cooldown, DEFAULT_ADS_COOLDOWN),
+      sessionCap: normalizePositiveInteger(config?.ads?.sessionCap, DEFAULT_ADS_SESSION_CAP),
+      dailyCap: normalizePositiveInteger(config?.ads?.dailyCap, DEFAULT_ADS_DAILY_CAP),
     },
     temporaryDiscoveryAccessDurationMinutes: normalizedDuration,
   }

@@ -4,16 +4,24 @@ export type AdminViewMode = 'list' | 'filter' | 'search' | 'sockets' | 'reports'
 
 export type AdminAppConfigProvider = string
 
+export type AdminAdsConfig = {
+  provider: AdminAppConfigProvider
+  cooldown: number
+  sessionCap: number
+  dailyCap: number
+}
+
 export type AdminAppConfig = {
-  ads: {
-    provider: AdminAppConfigProvider
-  }
+  ads: AdminAdsConfig
   temporaryDiscoveryAccessDurationMinutes: number
 }
 
 export type UpdateAdminAppConfigPayload = {
   ads?: {
     provider?: AdminAppConfigProvider
+    cooldown?: number
+    sessionCap?: number
+    dailyCap?: number
   }
   temporaryDiscoveryAccessDurationMinutes?: number
 }

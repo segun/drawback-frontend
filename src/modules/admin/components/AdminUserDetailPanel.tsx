@@ -5,12 +5,18 @@ type AdminUserDetailPanelProps = {
   isLoading: boolean
   error: string | null
   userAppConfigProvider: AdminAppConfigProvider
+  userAppConfigCooldown: number
+  userAppConfigSessionCap: number
+  userAppConfigDailyCap: number
   userAppConfigTemporaryDiscoveryAccessDurationMinutes: number
   isLoadingUserAppConfig: boolean
   userAppConfigError: string | null
   isSavingUserAppConfig: boolean
   isClearingUserAppConfig: boolean
   onUserAppConfigProviderChange: (value: AdminAppConfigProvider) => void
+  onUserAppConfigCooldownChange: (value: number) => void
+  onUserAppConfigSessionCapChange: (value: number) => void
+  onUserAppConfigDailyCapChange: (value: number) => void
   onUserAppConfigTemporaryDiscoveryAccessDurationMinutesChange: (value: number) => void
   onSaveUserAppConfig: () => void
   onClearUserAppConfig: () => void
@@ -47,12 +53,18 @@ export function AdminUserDetailPanel({
   isLoading,
   error,
   userAppConfigProvider,
+  userAppConfigCooldown,
+  userAppConfigSessionCap,
+  userAppConfigDailyCap,
   userAppConfigTemporaryDiscoveryAccessDurationMinutes,
   isLoadingUserAppConfig,
   userAppConfigError,
   isSavingUserAppConfig,
   isClearingUserAppConfig,
   onUserAppConfigProviderChange,
+  onUserAppConfigCooldownChange,
+  onUserAppConfigSessionCapChange,
+  onUserAppConfigDailyCapChange,
   onUserAppConfigTemporaryDiscoveryAccessDurationMinutesChange,
   onSaveUserAppConfig,
   onClearUserAppConfig,
@@ -116,6 +128,45 @@ export function AdminUserDetailPanel({
                 type="text"
                 value={userAppConfigProvider}
                 onChange={(event) => onUserAppConfigProviderChange(event.target.value as AdminAppConfigProvider)}
+                disabled={isLoadingUserAppConfig || isSavingUserAppConfig || isClearingUserAppConfig}
+                className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+
+            <label className="mt-3 flex flex-col gap-1 text-sm text-rose-900">
+              Ads Cooldown
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={userAppConfigCooldown}
+                onChange={(event) => onUserAppConfigCooldownChange(Number(event.target.value))}
+                disabled={isLoadingUserAppConfig || isSavingUserAppConfig || isClearingUserAppConfig}
+                className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+
+            <label className="mt-3 flex flex-col gap-1 text-sm text-rose-900">
+              Ads Session Cap
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={userAppConfigSessionCap}
+                onChange={(event) => onUserAppConfigSessionCapChange(Number(event.target.value))}
+                disabled={isLoadingUserAppConfig || isSavingUserAppConfig || isClearingUserAppConfig}
+                className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+              />
+            </label>
+
+            <label className="mt-3 flex flex-col gap-1 text-sm text-rose-900">
+              Ads Daily Cap
+              <input
+                type="number"
+                min={1}
+                step={1}
+                value={userAppConfigDailyCap}
+                onChange={(event) => onUserAppConfigDailyCapChange(Number(event.target.value))}
                 disabled={isLoadingUserAppConfig || isSavingUserAppConfig || isClearingUserAppConfig}
                 className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
               />

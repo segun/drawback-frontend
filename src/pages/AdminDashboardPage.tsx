@@ -92,6 +92,9 @@ const DEFAULT_SESSION_EVENT_FILTER_STATE: SessionEventFilterState = {
 
 const ADMIN_REPORT_NOTES_MAX = 2000
 const DEFAULT_APP_CONFIG_PROVIDER: AdminAppConfigProvider = 'admob'
+const DEFAULT_APP_CONFIG_ADS_COOLDOWN = 10
+const DEFAULT_APP_CONFIG_ADS_SESSION_CAP = 144000
+const DEFAULT_APP_CONFIG_ADS_DAILY_CAP = 144
 const DEFAULT_APP_CONFIG_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES = 1
 
 const toBooleanFilter = (value: BooleanFilterValue): boolean | undefined => {
@@ -214,6 +217,9 @@ export function AdminDashboardPage() {
   const [userDetailError, setUserDetailError] = useState<string | null>(null)
   const [selectedUserAppConfig, setSelectedUserAppConfig] = useState<AdminAppConfig | null>(null)
   const [selectedUserAppConfigProvider, setSelectedUserAppConfigProvider] = useState<AdminAppConfigProvider>(DEFAULT_APP_CONFIG_PROVIDER)
+  const [selectedUserAppConfigCooldown, setSelectedUserAppConfigCooldown] = useState(DEFAULT_APP_CONFIG_ADS_COOLDOWN)
+  const [selectedUserAppConfigSessionCap, setSelectedUserAppConfigSessionCap] = useState(DEFAULT_APP_CONFIG_ADS_SESSION_CAP)
+  const [selectedUserAppConfigDailyCap, setSelectedUserAppConfigDailyCap] = useState(DEFAULT_APP_CONFIG_ADS_DAILY_CAP)
   const [selectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes, setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes] = useState(
     DEFAULT_APP_CONFIG_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES,
   )
@@ -221,6 +227,22 @@ export function AdminDashboardPage() {
   const [userAppConfigError, setUserAppConfigError] = useState<string | null>(null)
   const [isSavingUserAppConfig, setIsSavingUserAppConfig] = useState(false)
   const [isClearingUserAppConfig, setIsClearingUserAppConfig] = useState(false)
+
+  const closeUserDetailsDialog = useCallback(() => {
+    setSelectedUserDetail(null)
+    setUserDetailError(null)
+    setIsLoadingUserDetail(false)
+    setSelectedUserAppConfig(null)
+    setSelectedUserAppConfigProvider(DEFAULT_APP_CONFIG_PROVIDER)
+    setSelectedUserAppConfigCooldown(DEFAULT_APP_CONFIG_ADS_COOLDOWN)
+    setSelectedUserAppConfigSessionCap(DEFAULT_APP_CONFIG_ADS_SESSION_CAP)
+    setSelectedUserAppConfigDailyCap(DEFAULT_APP_CONFIG_ADS_DAILY_CAP)
+    setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(DEFAULT_APP_CONFIG_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES)
+    setUserAppConfigError(null)
+    setIsLoadingUserAppConfig(false)
+    setIsSavingUserAppConfig(false)
+    setIsClearingUserAppConfig(false)
+  }, [])
 
   const visibleReports = useMemo(() => paginateData(reports, page, limit), [limit, page, reports])
   const visibleSessionEvents = useMemo(
@@ -391,8 +413,7 @@ export function AdminDashboardPage() {
   const handleViewModeChange = (nextMode: AdminViewMode) => {
     setViewMode(nextMode)
     setSelectedUserIds(new Set())
-    setSelectedUserDetail(null)
-    setUserDetailError(null)
+    closeUserDetailsDialog()
     setPage(ADMIN_DEFAULT_PAGE)
     setLoadError(null)
   }
@@ -510,6 +531,9 @@ export function AdminDashboardPage() {
     setIsLoadingUserDetail(true)
     setSelectedUserAppConfig(null)
     setSelectedUserAppConfigProvider(DEFAULT_APP_CONFIG_PROVIDER)
+    setSelectedUserAppConfigCooldown(DEFAULT_APP_CONFIG_ADS_COOLDOWN)
+    setSelectedUserAppConfigSessionCap(DEFAULT_APP_CONFIG_ADS_SESSION_CAP)
+    setSelectedUserAppConfigDailyCap(DEFAULT_APP_CONFIG_ADS_DAILY_CAP)
     setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(DEFAULT_APP_CONFIG_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES)
     setUserAppConfigError(null)
     setIsLoadingUserAppConfig(true)
@@ -535,6 +559,9 @@ export function AdminDashboardPage() {
     if (appConfigResult.status === 'fulfilled') {
       setSelectedUserAppConfig(appConfigResult.value)
       setSelectedUserAppConfigProvider(appConfigResult.value.ads.provider)
+      setSelectedUserAppConfigCooldown(appConfigResult.value.ads.cooldown)
+      setSelectedUserAppConfigSessionCap(appConfigResult.value.ads.sessionCap)
+      setSelectedUserAppConfigDailyCap(appConfigResult.value.ads.dailyCap)
       setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(appConfigResult.value.temporaryDiscoveryAccessDurationMinutes)
     } else {
       const error = appConfigResult.reason
@@ -555,6 +582,9 @@ export function AdminDashboardPage() {
     const appConfig = await adminApi.getUserAppConfig(userId)
     setSelectedUserAppConfig(appConfig)
     setSelectedUserAppConfigProvider(appConfig.ads.provider)
+    setSelectedUserAppConfigCooldown(appConfig.ads.cooldown)
+    setSelectedUserAppConfigSessionCap(appConfig.ads.sessionCap)
+    setSelectedUserAppConfigDailyCap(appConfig.ads.dailyCap)
     setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(appConfig.temporaryDiscoveryAccessDurationMinutes)
     setUserAppConfigError(null)
   }
@@ -573,17 +603,38 @@ export function AdminDashboardPage() {
       return
     }
 
+    if (!Number.isInteger(selectedUserAppConfigCooldown) || selectedUserAppConfigCooldown < 1) {
+      setNotice({ text: 'Ads cooldown must be an integer of at least 1.', type: 'error' })
+      return
+    }
+
+    if (!Number.isInteger(selectedUserAppConfigSessionCap) || selectedUserAppConfigSessionCap < 1) {
+      setNotice({ text: 'Ads session cap must be an integer of at least 1.', type: 'error' })
+      return
+    }
+
+    if (!Number.isInteger(selectedUserAppConfigDailyCap) || selectedUserAppConfigDailyCap < 1) {
+      setNotice({ text: 'Ads daily cap must be an integer of at least 1.', type: 'error' })
+      return
+    }
+
     setIsSavingUserAppConfig(true)
     try {
       const response = await adminApi.updateUserAppConfig(selectedUserDetail.id, {
         ads: {
           provider: selectedUserAppConfigProvider,
+          cooldown: selectedUserAppConfigCooldown,
+          sessionCap: selectedUserAppConfigSessionCap,
+          dailyCap: selectedUserAppConfigDailyCap,
         },
         temporaryDiscoveryAccessDurationMinutes: selectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes,
       })
 
       setSelectedUserAppConfig(response)
       setSelectedUserAppConfigProvider(response.ads.provider)
+      setSelectedUserAppConfigCooldown(response.ads.cooldown)
+      setSelectedUserAppConfigSessionCap(response.ads.sessionCap)
+      setSelectedUserAppConfigDailyCap(response.ads.dailyCap)
       setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(response.temporaryDiscoveryAccessDurationMinutes)
       setUserAppConfigError(null)
       setNotice({ text: `Updated app config override for ${selectedUserDetail.email}.`, type: 'success' })
@@ -761,6 +812,7 @@ export function AdminDashboardPage() {
   }
 
   const canExportUsersCsv = viewMode === 'list' || viewMode === 'filter'
+  const isUserDetailDialogOpen = isLoadingUserDetail || Boolean(userDetailError) || Boolean(selectedUserDetail)
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -1134,37 +1186,45 @@ export function AdminDashboardPage() {
               />
             )}
 
-            {isUserTableView(viewMode) && (
-              <AdminUserDetailPanel
-                user={selectedUserDetail}
-                isLoading={isLoadingUserDetail}
-                error={userDetailError}
-                userAppConfigProvider={selectedUserAppConfig?.ads.provider ?? selectedUserAppConfigProvider}
-                userAppConfigTemporaryDiscoveryAccessDurationMinutes={
-                  selectedUserAppConfig?.temporaryDiscoveryAccessDurationMinutes
-                  ?? selectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes
-                }
-                isLoadingUserAppConfig={isLoadingUserAppConfig}
-                userAppConfigError={userAppConfigError}
-                isSavingUserAppConfig={isSavingUserAppConfig}
-                isClearingUserAppConfig={isClearingUserAppConfig}
-                onUserAppConfigProviderChange={setSelectedUserAppConfigProvider}
-                onUserAppConfigTemporaryDiscoveryAccessDurationMinutesChange={setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes}
-                onSaveUserAppConfig={() => void handleSaveUserAppConfig()}
-                onClearUserAppConfig={() => void handleClearUserAppConfig()}
-                onClose={() => {
-                  setSelectedUserDetail(null)
-                  setUserDetailError(null)
-                  setIsLoadingUserDetail(false)
-                  setSelectedUserAppConfig(null)
-                  setSelectedUserAppConfigProvider(DEFAULT_APP_CONFIG_PROVIDER)
-                  setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes(DEFAULT_APP_CONFIG_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES)
-                  setUserAppConfigError(null)
-                  setIsLoadingUserAppConfig(false)
-                  setIsSavingUserAppConfig(false)
-                  setIsClearingUserAppConfig(false)
-                }}
-              />
+            {isUserTableView(viewMode) && isUserDetailDialogOpen && (
+              <div
+                className="fixed inset-0 z-50 flex items-center justify-center bg-rose-950/45 px-4 py-6"
+                role="dialog"
+                aria-modal="true"
+                aria-label="User details dialog"
+                onClick={closeUserDetailsDialog}
+              >
+                <div
+                  className="max-h-[90vh] w-full max-w-4xl overflow-y-auto"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <AdminUserDetailPanel
+                    user={selectedUserDetail}
+                    isLoading={isLoadingUserDetail}
+                    error={userDetailError}
+                    userAppConfigProvider={selectedUserAppConfig?.ads.provider ?? selectedUserAppConfigProvider}
+                    userAppConfigCooldown={selectedUserAppConfig?.ads.cooldown ?? selectedUserAppConfigCooldown}
+                    userAppConfigSessionCap={selectedUserAppConfig?.ads.sessionCap ?? selectedUserAppConfigSessionCap}
+                    userAppConfigDailyCap={selectedUserAppConfig?.ads.dailyCap ?? selectedUserAppConfigDailyCap}
+                    userAppConfigTemporaryDiscoveryAccessDurationMinutes={
+                      selectedUserAppConfig?.temporaryDiscoveryAccessDurationMinutes
+                      ?? selectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes
+                    }
+                    isLoadingUserAppConfig={isLoadingUserAppConfig}
+                    userAppConfigError={userAppConfigError}
+                    isSavingUserAppConfig={isSavingUserAppConfig}
+                    isClearingUserAppConfig={isClearingUserAppConfig}
+                    onUserAppConfigProviderChange={setSelectedUserAppConfigProvider}
+                    onUserAppConfigCooldownChange={setSelectedUserAppConfigCooldown}
+                    onUserAppConfigSessionCapChange={setSelectedUserAppConfigSessionCap}
+                    onUserAppConfigDailyCapChange={setSelectedUserAppConfigDailyCap}
+                    onUserAppConfigTemporaryDiscoveryAccessDurationMinutesChange={setSelectedUserAppConfigTemporaryDiscoveryAccessDurationMinutes}
+                    onSaveUserAppConfig={() => void handleSaveUserAppConfig()}
+                    onClearUserAppConfig={() => void handleClearUserAppConfig()}
+                    onClose={closeUserDetailsDialog}
+                  />
+                </div>
+              </div>
             )}
           </div>
         </div>

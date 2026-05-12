@@ -8,6 +8,9 @@ import { useAdminSessionGuard } from '../modules/admin/hooks/useAdminSessionGuar
 import type { AdminAppConfigProvider } from '../modules/admin/types'
 
 const DEFAULT_PROVIDER: AdminAppConfigProvider = 'admob'
+const DEFAULT_ADS_COOLDOWN = 10
+const DEFAULT_ADS_SESSION_CAP = 144000
+const DEFAULT_ADS_DAILY_CAP = 144
 const DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES = 1
 
 export function AdminAppConfigPage() {
@@ -17,6 +20,9 @@ export function AdminAppConfigPage() {
   const [notice, setNotice] = useState<Notice | null>(null)
 
   const [globalProvider, setGlobalProvider] = useState<AdminAppConfigProvider>(DEFAULT_PROVIDER)
+  const [globalAdsCooldown, setGlobalAdsCooldown] = useState(DEFAULT_ADS_COOLDOWN)
+  const [globalAdsSessionCap, setGlobalAdsSessionCap] = useState(DEFAULT_ADS_SESSION_CAP)
+  const [globalAdsDailyCap, setGlobalAdsDailyCap] = useState(DEFAULT_ADS_DAILY_CAP)
   const [globalTemporaryDiscoveryAccessDurationMinutes, setGlobalTemporaryDiscoveryAccessDurationMinutes] = useState(
     DEFAULT_TEMP_DISCOVERY_ACCESS_DURATION_MINUTES,
   )
@@ -31,6 +37,9 @@ export function AdminAppConfigPage() {
     try {
       const response = await adminApi.getGlobalAppConfig()
       setGlobalProvider(response.ads.provider)
+      setGlobalAdsCooldown(response.ads.cooldown)
+      setGlobalAdsSessionCap(response.ads.sessionCap)
+      setGlobalAdsDailyCap(response.ads.dailyCap)
       setGlobalTemporaryDiscoveryAccessDurationMinutes(response.temporaryDiscoveryAccessDurationMinutes)
     } catch (error: unknown) {
       if (handleUnauthorizedError(error)) {
@@ -61,16 +70,37 @@ export function AdminAppConfigPage() {
       return
     }
 
+    if (!Number.isInteger(globalAdsCooldown) || globalAdsCooldown < 1) {
+      setNotice({ text: 'Ads cooldown must be an integer of at least 1.', type: 'error' })
+      return
+    }
+
+    if (!Number.isInteger(globalAdsSessionCap) || globalAdsSessionCap < 1) {
+      setNotice({ text: 'Ads session cap must be an integer of at least 1.', type: 'error' })
+      return
+    }
+
+    if (!Number.isInteger(globalAdsDailyCap) || globalAdsDailyCap < 1) {
+      setNotice({ text: 'Ads daily cap must be an integer of at least 1.', type: 'error' })
+      return
+    }
+
     setIsSavingGlobalConfig(true)
     try {
       const response = await adminApi.updateGlobalAppConfig({
         ads: {
           provider: globalProvider,
+          cooldown: globalAdsCooldown,
+          sessionCap: globalAdsSessionCap,
+          dailyCap: globalAdsDailyCap,
         },
         temporaryDiscoveryAccessDurationMinutes: globalTemporaryDiscoveryAccessDurationMinutes,
       })
 
       setGlobalProvider(response.ads.provider)
+      setGlobalAdsCooldown(response.ads.cooldown)
+      setGlobalAdsSessionCap(response.ads.sessionCap)
+      setGlobalAdsDailyCap(response.ads.dailyCap)
       setGlobalTemporaryDiscoveryAccessDurationMinutes(response.temporaryDiscoveryAccessDurationMinutes)
       setNotice({ text: 'Updated global app config.', type: 'success' })
     } catch (error: unknown) {
@@ -144,6 +174,42 @@ export function AdminAppConfigPage() {
                     value={globalProvider}
                     onChange={(event) => setGlobalProvider(event.target.value as AdminAppConfigProvider)}
                     placeholder="admob"
+                    className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-1 text-sm text-rose-900">
+                  Ads Cooldown
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={globalAdsCooldown}
+                    onChange={(event) => setGlobalAdsCooldown(Number(event.target.value))}
+                    className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-1 text-sm text-rose-900">
+                  Ads Session Cap
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={globalAdsSessionCap}
+                    onChange={(event) => setGlobalAdsSessionCap(Number(event.target.value))}
+                    className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600"
+                  />
+                </label>
+
+                <label className="flex flex-col gap-1 text-sm text-rose-900">
+                  Ads Daily Cap
+                  <input
+                    type="number"
+                    min={1}
+                    step={1}
+                    value={globalAdsDailyCap}
+                    onChange={(event) => setGlobalAdsDailyCap(Number(event.target.value))}
                     className="rounded-md border border-rose-300 bg-rose-100 px-3 py-2 outline-none focus:border-rose-600"
                   />
                 </label>

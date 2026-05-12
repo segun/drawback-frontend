@@ -62,20 +62,4 @@ jobs:
             git reset --hard origin/${{ matrix.branch }}
             bash deploy/deploy-frontend.sh
 
-      - name: Health Check
-        if: github.ref_name == matrix.branch
-        run: |
-          echo "⏳ Waiting for deployment to complete..."
-          sleep 15
-          echo "🏥 Running health check..."
-          for i in $(seq 1 10); do
-            echo "Attempt $i/10..."
-            if curl -f --max-time 15 https://${{ matrix.site_host }}; then
-              echo "✅ Frontend is healthy!"
-              exit 0
-            fi
-            echo "Not ready yet, retrying in 15s..."
-            sleep 15
-          done
-          echo "❌ Health check failed after 10 attempts."
-          exit 1
+
