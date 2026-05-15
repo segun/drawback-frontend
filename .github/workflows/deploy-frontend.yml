@@ -31,35 +31,77 @@ jobs:
         run: yarn build
 
   deploy:
-    name: Deploy to ${{ matrix.branch }}
+    name: Deploy
     runs-on: ubuntu-latest
     needs: build
-    strategy:
-      matrix:
-        include:
-          - branch: dev
-            site_host: dev.controlhq.ng
-          - branch: master
-            site_host: controlhq.ng
 
     steps:
-      - name: Deploy via SSH
-        if: github.ref_name == matrix.branch
+      - name: Deploy dev via SSH
+        if: github.ref_name == 'dev'
         uses: appleboy/ssh-action@v1.0.3
         with:
-          host: ${{ github.ref_name == 'dev' && secrets.DO_SSH_HOST_DEV || secrets.DO_SSH_HOST_PROD }}
+          host: ${{ secrets.DO_SSH_HOST_DEV }}
           username: ${{ secrets.DO_USERNAME }}
           key: ${{ secrets.DO_SSH_KEY }}
           passphrase: ${{ secrets.DO_SSH_PASSPHRASE }}
-          debug: true
           port: ${{ secrets.SSH_PORT || 22 }}
           script: |
             export NVM_DIR="$HOME/.nvm"
             [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
             node -v
             cd /opt/drawback/frontend
-            git fetch origin ${{ matrix.branch }}
-            git reset --hard origin/${{ matrix.branch }}
+            git fetch origin dev
+            git reset --hard origin/dev
             bash deploy/deploy-frontend.sh
+
+      - name: Health check dev
+        if: github.ref_name == 'dev'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_SSH_HOST_DEV }}
+          username: ${{ secrets.DO_USERNAME }}
+          key: ${{ secrets.DO_SSH_KEY }}
+          passphrase: ${{ secrets.DO_SSH_PASSPHRASE }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            echo "Waiting for frontend to start..."
+            sleep 10
+            echo "Running health check..."
+            curl -f https://dev.drawback.chat || exit 1
+            echo "Frontend is healthy!"
+
+      - name: Deploy master via SSH
+        if: github.ref_name == 'master'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_SSH_HOST_PROD }}
+          username: ${{ secrets.DO_PROD_USERNAME }}
+          key: ${{ secrets.DO_PROD_SSH_KEY }}
+          passphrase: ${{ secrets.DO_PROD_SSH_PASSPHRASE }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            export NVM_DIR="$HOME/.nvm"
+            [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+            node -v
+            cd /opt/drawback/frontend
+            git fetch origin master
+            git reset --hard origin/master
+            bash deploy/deploy-frontend.sh
+
+      - name: Health check master
+        if: github.ref_name == 'master'
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DO_SSH_HOST_PROD }}
+          username: ${{ secrets.DO_PROD_USERNAME }}
+          key: ${{ secrets.DO_PROD_SSH_KEY }}
+          passphrase: ${{ secrets.DO_PROD_SSH_PASSPHRASE }}
+          port: ${{ secrets.SSH_PORT || 22 }}
+          script: |
+            echo "Waiting for frontend to start..."
+            sleep 10
+            echo "Running health check..."
+            curl -f https://drawback.chat || exit 1
+            echo "Frontend is healthy!"
 
 
